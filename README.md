@@ -82,23 +82,16 @@ services:
 
 之後 `make restart` 就會自動帶住個 mount，再 `make shell` 入到去就直接喺 `/app` 見到你個 project。
 
-## Claude Code 嘅 login 🔐
+## Claude Code 嘅認證 🔐
 
-因為 dev 容器冇 mount `/root`，每次 rebuild image 之後 OAuth token 會冇，要再 login。
+唔行 OAuth flow，靠 env var 直接通：
 
-如果嫌煩想保住 login，喺 override file 加：
-
-```yaml
-services:
-  dev:
-    volumes:
-      - dev-home:/root
-
-volumes:
-  dev-home:
+```env
+ANTHROPIC_AUTH_TOKEN=你個 token
+ANTHROPIC_BASE_URL=你個 proxy / gateway URL
 ```
 
-咁 token 就會 keep 住喺 named volume 入面，rebuild image 都唔會冇。
+寫入 `.env`（已 gitignore），`make start` 之後 `docker-compose.yml` 會自動 forward 入 dev container，`claude` 啟動時直接攞嚟用，唔使再 login。
 
 ## 連 DB 🔌
 

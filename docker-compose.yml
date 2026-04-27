@@ -9,6 +9,9 @@ services:
     tty: true
     stdin_open: true
     working_dir: /app
+    environment:
+      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL}
     depends_on:
       - mysql
       - redis

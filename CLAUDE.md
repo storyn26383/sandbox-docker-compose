@@ -41,6 +41,7 @@ Claude Code 嘅 sandbox 唔畀 access Docker socket（OrbStack / Docker Desktop 
 
 - `.env.example` 係單一真相 —— 改 env key 一定要兩邊（`.env.example` 同 `.env`）一齊改。
 - 預設值適合本機 chill 用（root / default），唔好提議改成「production-grade」。
+- `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` 由 `.env` 經 `docker-compose.yml` `environment:` forward 入 dev container 畀 claude-code 用。**唔好提議用 OAuth flow** —— 已經設計成靠 token + proxy URL，唔需要 login。
 
 ## 唔好做嘅嘢
 
