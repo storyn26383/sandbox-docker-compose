@@ -7,7 +7,7 @@ ENV LANG=en_US.UTF-8
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget gnupg \
         git vim sudo openssh-client unzip zip \
-        jq ripgrep fzf htop tmux \
+        jq ripgrep fzf htop \
         iputils-ping dnsutils netcat-openbsd \
         locales tzdata \
         default-mysql-client redis-tools \
