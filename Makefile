@@ -11,6 +11,7 @@ SSH_OPTS = -p $(SANDBOX_SSH_PORT) -o StrictHostKeyChecking=no -o UserKnownHostsF
 init:
 	git submodule update --init --recursive
 	test -f .env || cp .env.example .env
+	mkdir -p docker/.data/coding
 	docker compose build
 
 start:
@@ -29,7 +30,7 @@ logs:
 
 reset:
 	docker compose down
-	rm -rf clickhouse/docker/.data/clickhouse docker/.data
+	rm -rf clickhouse/docker/.data/clickhouse docker/.data/mysql docker/.data/redis
 
 ssh:
 	ssh $(SSH_OPTS) sandbox@localhost
