@@ -10,11 +10,17 @@
 
 ## Submodule 紀律
 
-`golden-clickhouse/` 係 git submodule，指住 `git@github.com:storyn26383/golden-clickhouse.git`。
+呢個 repo 有兩個 submodule：
 
-- **唔好喺 sandbox 呢度直接改 `golden-clickhouse/` 入面任何檔案**（包括 XML config、docker-compose.yml、Makefile）。
-- 要改 ClickHouse 設定就 `cd golden-clickhouse`，喺嗰邊 commit、push，再返嚟 sandbox 度 update submodule pointer。
-- 如果發現 submodule 內有 dirty changes，先問清楚先動。
+| Path | Remote | 用途 |
+|---|---|---|
+| `golden-clickhouse/` | `git@github.com:storyn26383/golden-clickhouse.git` | ClickHouse service 同 config |
+| `claude/` | `git@github.com:storyn26383/.claude.git` | sasaya 個人 Claude 設定，mount 入 dev container 做 `/root/.claude` |
+
+- **唔好喺 sandbox 呢度直接改 submodule 入面任何檔案**（包括 ClickHouse XML config、Claude skills/commands/settings）。
+- 要改 ClickHouse / Claude 設定就 `cd <submodule>`，喺嗰邊 commit、push，再返嚟 sandbox 度 update submodule pointer。
+- `claude/` 比較易變 dirty —— 因為 dev container 入面 claude-code 會寫 runtime state（projects/、scheduled_tasks.json 等）入 mount，呢啲跟 `claude` submodule 自己嘅 `.gitignore` 處理。如果見到 dirty，要分清楚係 runtime 產物（無視）定真係改咗 config（去處理）。
+- `claude/` mount 入 dev container 之後喺容器內叫 `/root/.claude`，唔係 `claude` —— mount target 唔同 path name。
 
 ## Docker 操作嘅限制
 

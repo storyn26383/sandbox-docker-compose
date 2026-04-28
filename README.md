@@ -2,7 +2,7 @@
 
 自己嘅開發沙盒，一個容器入面塞晒平時用嘅工具，再夾埋 MySQL / ClickHouse / Redis 三個 DB，方便試嘢、寫 demo、玩新 library 嗰陣唔使污染本機。
 
-ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse)，一齊跑，唔使重複維護。
+ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse)，一齊跑，唔使重複維護。Claude 個人設定（skills / commands / settings）就用 [`storyn26383/.claude`](https://github.com/storyn26383/.claude) submodule 落到 `claude/`，再 mount 入 dev container 做 `/root/.claude`。
 
 ## 入面有咩 📦
 
@@ -156,6 +156,7 @@ sandbox-docker-compose/
 ├── .env / .env.example         # ClickHouse + MySQL credentials
 ├── Makefile                    # 全部 make 指令
 ├── docker/dev/Dockerfile       # dev 容器點 build
+├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /root/.claude
 └── golden-clickhouse/          # submodule，ClickHouse 嘅嘢全部喺呢度
 ```
 
