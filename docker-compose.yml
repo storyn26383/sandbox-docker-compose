@@ -4,7 +4,11 @@ include:
 
 services:
   dev:
-    build: ./docker/dev
+    build:
+      context: ./docker/dev
+      args:
+        UID: ${HOST_UID:-1000}
+        GID: ${HOST_GID:-1000}
     container_name: sandbox-dev
     tty: true
     stdin_open: true
@@ -15,8 +19,8 @@ services:
     ports:
       - "127.0.0.1:${SANDBOX_SSH_PORT:-2222}:22"
     volumes:
-      - ${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}:/root/.ssh/authorized_keys:ro
-      - ./claude:/root/.claude
+      - ${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}:/home/sandbox/.ssh/authorized_keys:ro
+      - ./claude:/home/sandbox/.claude
     depends_on:
       - mysql
       - redis

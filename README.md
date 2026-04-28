@@ -48,7 +48,9 @@ git submodule update --init --recursive
 
 ### `.env`
 
-`make init` 會自動 `cp .env.example .env`。入面啲嘢全部係本地最 chill 嘅預設值（`default` / `root`），要改自己 edit 就得。
+`make init` 會自動 `cp .env.example .env`，啲嘢全部係本地最 chill 嘅預設值（`default` / `root`），要改自己 edit 就得。
+
+`HOST_UID` / `HOST_GID` 唔放 `.env`，由 Makefile 用 `id -u` / `id -g` 即時注入畀 build args，跟你本機 user 一樣。**所以 build / start 一定要透過 Makefile**，唔好直接 `docker compose build`。
 
 ## 平時點用 🎮
 
@@ -99,7 +101,7 @@ ANTHROPIC_BASE_URL=你個 proxy / gateway URL
 
 ## SSH Tunnel 連 DB 🔌
 
-Dev container 入面跑住 sshd，host 嘅 `127.0.0.1:2222` 對住容器嘅 `22`。SSH 認證用你 host 嘅 `~/.ssh/id_ed25519.pub`（mount 入容器做 `authorized_keys`），唔使輸密碼。
+Dev container 入面跑住 sshd，host 嘅 `127.0.0.1:2222` 對住容器嘅 `22`。SSH 認證用你 host 嘅 `~/.ssh/id_ed25519.pub`（mount 入容器做 `/home/sandbox/.ssh/authorized_keys`），login 帳戶係 `sandbox`（root login disabled），唔使輸密碼。`sandbox` 用戶嘅 UID/GID 跟你 host 一樣，喺 mount 入嚟嘅 project 度寫嘅檔案會係你本機 user 擁有。
 
 **一鍵起晒 tunnel**（背景跑）
 
@@ -131,7 +133,7 @@ curl 'http://127.0.0.1:18123/?query=SELECT+1'
 ```bash
 make ssh
 # 或者
-ssh -p 2222 root@localhost
+ssh -p 2222 sandbox@localhost
 ```
 
 **改 SSH port**
@@ -142,11 +144,13 @@ ssh -p 2222 root@localhost
 
 ```bash
 make shell
-# 入到 container 後直接：
+# 入到 container 後（已經係 sandbox user）直接：
 mysql -h mysql -uroot -proot
 redis-cli -h redis
 curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
+
+如果有需要做 root 嘢（裝 apt package、改 system config），喺 dev shell 度行 `sudo` 就得（NOPASSWD 已經配好），或者 `docker compose exec dev bash` 直接以 root 入去。
 
 ## 結構 🗂️
 
