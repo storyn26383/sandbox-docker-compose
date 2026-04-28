@@ -12,6 +12,10 @@ services:
     environment:
       ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL}
+    ports:
+      - "127.0.0.1:${SANDBOX_SSH_PORT:-2222}:22"
+    volumes:
+      - ${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}:/root/.ssh/authorized_keys:ro
     depends_on:
       - mysql
       - redis
@@ -21,8 +25,8 @@ services:
     image: mysql:8.0
     container_name: sandbox-mysql
     restart: unless-stopped
-    ports:
-      - "3306:3306"
+    expose:
+      - "3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-sandbox}
@@ -33,10 +37,16 @@ services:
     image: redis:7-alpine
     container_name: sandbox-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     volumes:
       - redis-data:/data
+
+  clickhouse:
+    ports: !override []
+
+  clickhouse-testing:
+    ports: !override []
 
 volumes:
   mysql-data:

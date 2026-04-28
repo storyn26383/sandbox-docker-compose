@@ -16,16 +16,18 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 | 🗄️ DB client | mysql、redis-cli |
 | 🌐 網絡 | curl、wget、ping、dig、nc |
 
-**DB services**
+**DB services**（全部唔 expose 到 host，純內網）
 
-| Service | Image | Host port |
+| Service | Image | 容器內 port |
 |---|---|---|
 | `mysql` | `mysql:8.0` | 3306 |
 | `redis` | `redis:7-alpine` | 6379 |
 | `clickhouse` | `clickhouse/clickhouse-server:23.3` | 8123 / 9000 |
-| `clickhouse-testing` | `clickhouse/clickhouse-server:23.3` | 18123 / 19000 |
+| `clickhouse-testing` | `clickhouse/clickhouse-server:23.3` | 8123 / 9000 |
 
-容器之間直接用 service name 通到，唔使理 IP。例如喺 dev 容器入面打 `mysql -h mysql`、`redis-cli -h redis`、`curl http://clickhouse:8123` 就得。
+由於 host 上面已經有自己嘅 MySQL / Redis / ClickHouse 喺度跑，sandbox 嘅 DB **全部唔 publish 到 host**，避免 port 撞。要由 host 連入嚟就行 SSH tunnel（下面 [SSH Tunnel 連 DB](#ssh-tunnel-連-db-) section 講）。
+
+容器之間照常用 service name 通到，例如喺 dev 容器內 `mysql -h mysql`、`redis-cli -h redis`、`curl http://clickhouse:8123`。
 
 ## 點樣開工 🚀
 
@@ -54,7 +56,9 @@ git submodule update --init --recursive
 make start      # 起所有 service
 make stop       # 全部停
 make restart    # 重啟
-make shell      # 跳入 dev 容器嘅 bash，pwd 係 /app
+make shell      # docker exec 入 dev container（pwd /app）
+make ssh        # 透過 sshd 入 dev container
+make tunnel     # 開 SSH tunnel forward 所有 DB 到 localhost
 make logs       # tail 晒所有 log
 make reset      # 一鍵清晒（連 ClickHouse data 都冚）
 ```
@@ -93,19 +97,52 @@ ANTHROPIC_BASE_URL=你個 proxy / gateway URL
 
 寫入 `.env`（已 gitignore），`make start` 之後 `docker-compose.yml` 會自動 forward 入 dev container，`claude` 啟動時直接攞嚟用，唔使再 login。
 
-## 連 DB 🔌
+## SSH Tunnel 連 DB 🔌
 
-**由 host（即係你 Mac）連**
+Dev container 入面跑住 sshd，host 嘅 `127.0.0.1:2222` 對住容器嘅 `22`。SSH 認證用你 host 嘅 `~/.ssh/id_ed25519.pub`（mount 入容器做 `authorized_keys`），唔使輸密碼。
+
+**一鍵起晒 tunnel**（背景跑）
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -uroot -proot
-redis-cli -h 127.0.0.1 -p 6379
-curl 'http://localhost:8123/?query=SELECT+1'
+make tunnel &
 ```
 
-**由 dev 容器入面連**（用 service name）
+呢個會 forward 哂下面嘅 port：
+
+| Local port | 對應容器 |
+|---|---|
+| 13306 | `mysql:3306` |
+| 16379 | `redis:6379` |
+| 18123 | `clickhouse:8123` |
+| 19000 | `clickhouse:9000` |
+| 28123 | `clickhouse-testing:8123` |
+| 29000 | `clickhouse-testing:9000` |
+
+之後 host 上面照常連：
 
 ```bash
+mysql -h 127.0.0.1 -P 13306 -uroot -proot
+redis-cli -h 127.0.0.1 -p 16379
+curl 'http://127.0.0.1:18123/?query=SELECT+1'
+```
+
+**SSH 直入 dev container**（行任何指令都得）
+
+```bash
+make ssh
+# 或者
+ssh -p 2222 root@localhost
+```
+
+**改 SSH port**
+
+`.env` 入面改 `SANDBOX_SSH_PORT=...`，`make restart` 之後新 port 即時生效。
+
+**唔想用 SSH，淨係喺 dev container 入面做嘢**
+
+```bash
+make shell
+# 入到 container 後直接：
 mysql -h mysql -uroot -proot
 redis-cli -h redis
 curl 'http://clickhouse:8123/?query=SELECT+1'

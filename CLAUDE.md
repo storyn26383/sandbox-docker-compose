@@ -29,19 +29,24 @@ Claude Code 嘅 sandbox 唔畀 access Docker socket（OrbStack / Docker Desktop 
 - `docker-compose.yml` 用 `include:` 帶入 `golden-clickhouse/docker-compose.yml`。
 - 顯式寫咗 `env_file: .env`，因為 golden-clickhouse 入面個 `.env` 係 broken symlink (`../api/.env`)。
 - ClickHouse XML config 入面 `<host>clickhouse</host>` 係 service name，唔係 container name —— include 之後仲係喺同一個 network，仍然 resolve 到。
-- 需要 Compose **v2.20+**（include 指令）。
+- golden-clickhouse 嗰邊 `clickhouse` / `clickhouse-testing` 嘅 `ports:` 喺 sandbox 度用 `ports: !override []` **強制清空**（host 唔 publish），呢個係刻意嘅設計。
+- 需要 Compose **v2.24+**（用到 `!override` tag）。
 
 ## Dev container 設計原則
 
-- **預設冇 mount 任何 host 目錄**。要 mount 由用家自己用 `docker-compose.override.yml` 加，已經 `.gitignore` 咗。
+- **預設冇 mount 任何 host 目錄做 workspace**。要 mount 由用家自己用 `docker-compose.override.yml` 加，已經 `.gitignore` 咗。
 - Base image 用 `phpswoole/swoole:5.1-php8.3`（Debian bookworm），唔好提議轉 Alpine —— alpine variant 唔包 dev 工具，要重新填好多嘢。
 - WORKDIR 係 `/app`。
+- Container 跑住 **sshd**（CMD `/usr/sbin/sshd -D -e`），host 嘅 `127.0.0.1:${SANDBOX_SSH_PORT}:22` 對住 container 22 port，畀 host 透過 SSH tunnel 連 DB。
+- SSH 認證**只接受 pubkey**（`PermitRootLogin prohibit-password` + `PasswordAuthentication no`），mount host 嘅 `${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}` 做 `/root/.ssh/authorized_keys`。
+- DB services（mysql / redis / clickhouse / clickhouse-testing）**全部唔 publish 到 host**，純內網。要 host 連 DB 一律行 `make tunnel`。**唔好提議直接 publish DB port** —— 用家本機已經有自己嘅 DB 跑緊，會撞 port。
 
 ## `.env` / 環境變數
 
 - `.env.example` 係單一真相 —— 改 env key 一定要兩邊（`.env.example` 同 `.env`）一齊改。
 - 預設值適合本機 chill 用（root / default），唔好提議改成「production-grade」。
 - `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` 由 `.env` 經 `docker-compose.yml` `environment:` forward 入 dev container 畀 claude-code 用。**唔好提議用 OAuth flow** —— 已經設計成靠 token + proxy URL，唔需要 login。
+- `SANDBOX_SSH_PORT`（host 上面嘅 SSH port，default 2222）同 `SSH_PUBKEY`（authorized_keys 嘅來源，default `${HOME}/.ssh/id_ed25519.pub`）由 compose `${VAR:-default}` 解析。
 
 ## 唔好做嘅嘢
 
