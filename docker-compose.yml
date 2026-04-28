@@ -5,7 +5,7 @@ include:
 services:
   dev:
     build:
-      context: ./docker/dev
+      context: .
       args:
         UID: ${HOST_UID:-1000}
         GID: ${HOST_GID:-1000}
@@ -21,7 +21,7 @@ services:
     volumes:
       - ${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}:/home/sandbox/.ssh/authorized_keys:ro
       - ./claude:/home/sandbox/.claude
-      - ./docker/.data/coding:/home/sandbox/coding
+      - ./.data/coding:/home/sandbox/coding
     depends_on:
       - mysql
       - redis
@@ -37,7 +37,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-sandbox}
     volumes:
-      - ./docker/.data/mysql:/var/lib/mysql
+      - ./.data/mysql:/var/lib/mysql
 
   redis:
     image: redis:7-alpine
@@ -46,7 +46,7 @@ services:
     expose:
       - "6379"
     volumes:
-      - ./docker/.data/redis:/data
+      - ./.data/redis:/data
 
   clickhouse:
     ports: !override []

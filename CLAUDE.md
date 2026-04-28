@@ -40,7 +40,7 @@ Claude Code 嘅 sandbox 唔畀 access Docker socket（OrbStack / Docker Desktop 
 
 ## Dev container 設計原則
 
-- **預設 mount `./docker/.data/coding` 落 `/home/sandbox/coding`** 做 workspace（host IDE edit、容器內 SSH/`make shell` 入去 `~/coding` 即見）。`make init` 會預先 `mkdir`，避免 Docker daemon 以 root 創建令 sandbox 寫唔到。其他額外 host 目錄要 mount 由用家自己用 `docker-compose.override.yml` 加，已經 `.gitignore` 咗。
+- **預設 mount `./.data/coding` 落 `/home/sandbox/coding`** 做 workspace（host IDE edit、容器內 SSH/`make shell` 入去 `~/coding` 即見）。`make init` 會預先 `mkdir`，避免 Docker daemon 以 root 創建令 sandbox 寫唔到。其他額外 host 目錄要 mount 由用家自己用 `docker-compose.override.yml` 加，已經 `.gitignore` 咗。
 - Base image 用 `phpswoole/swoole:5.1-php8.3`（Debian bookworm），唔好提議轉 Alpine —— alpine variant 唔包 dev 工具，要重新填好多嘢。
 - WORKDIR 係 `/app`。
 - 容器內有兩個身份：

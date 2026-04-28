@@ -1,4 +1,4 @@
 .env
 clickhouse/docker/.data/
-docker/.data/
+.data/
 docker-compose.override.yml

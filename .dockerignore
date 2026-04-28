@@ -1,0 +1,14 @@
+.git
+.github
+.gitignore
+.gitmodules
+.dockerignore
+.env
+.env.example
+docker-compose.yml
+docker-compose.override.yml
+.data
+clickhouse
+claude
+*.md
+Makefile

@@ -71,9 +71,9 @@ make reset      # 一鍵清晒（連 ClickHouse data 都冚）
 
 | Host | 容器 |
 |---|---|
-| `./docker/.data/coding/` | `/home/sandbox/coding`（即 `~/coding`） |
+| `./.data/coding/` | `/home/sandbox/coding`（即 `~/coding`） |
 
-`make init` 會幫你預先 `mkdir` 好個目錄。Host 上面用任何 IDE 直接 edit `./docker/.data/coding/...`，容器內即時見到（`make ssh` 入去就喺 `~/coding`）。`./docker/.data/` 已經 `.gitignore`，唔會污染 repo。
+`make init` 會幫你預先 `mkdir` 好個目錄。Host 上面用任何 IDE 直接 edit `./.data/coding/...`，容器內即時見到（`make ssh` 入去就喺 `~/coding`）。`./.data/` 已經 `.gitignore`，唔會污染 repo。
 
 因為 sandbox 用戶 UID/GID 跟住 host 一樣，permission 自動匹配，host 同容器寫嘅檔案兩邊都當係你本機 user 擁有。
 
@@ -161,8 +161,8 @@ sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
 ├── .env / .env.example         # ClickHouse + MySQL credentials
 ├── Makefile                    # 全部 make 指令
-├── docker/dev/Dockerfile       # dev 容器點 build
-├── docker/.data/               # MySQL / Redis 資料 bind mount 落呢度（gitignore）
+├── Dockerfile                  # dev 容器點 build
+├── .data/                      # MySQL / Redis / coding 資料 bind mount 落呢度（gitignore）
 ├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /home/sandbox/.claude
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```
@@ -176,7 +176,7 @@ make reset
 會做兩樣嘢：
 
 1. `docker compose down` —— 停哂晒 service
-2. `rm -rf clickhouse/docker/.data/clickhouse docker/.data` —— ClickHouse / MySQL / Redis 資料一齊清
+2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis` —— ClickHouse / MySQL / Redis 資料一齊清（保留 `.data/coding`）
 
 跟住 `make start` 就係全新一個。
 
