@@ -160,7 +160,8 @@ sandbox-docker-compose/
 ├── .env / .env.example         # ClickHouse + MySQL credentials
 ├── Makefile                    # 全部 make 指令
 ├── docker/dev/Dockerfile       # dev 容器點 build
-├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /root/.claude
+├── docker/.data/               # MySQL / Redis 資料 bind mount 落呢度（gitignore）
+├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /home/sandbox/.claude
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```
 
@@ -172,8 +173,8 @@ make reset
 
 會做兩樣嘢：
 
-1. `docker compose down -v` —— 停 service + 刪 named volume（MySQL / Redis 資料一齊冚）
-2. `rm -rf clickhouse/docker/.data/clickhouse` —— ClickHouse 數據都清
+1. `docker compose down` —— 停哂晒 service
+2. `rm -rf clickhouse/docker/.data/clickhouse docker/.data` —— ClickHouse / MySQL / Redis 資料一齊清
 
 跟住 `make start` 就係全新一個。
 

@@ -28,8 +28,8 @@ logs:
 	docker compose logs -f
 
 reset:
-	docker compose down -v
-	rm -rf clickhouse/docker/.data/clickhouse
+	docker compose down
+	rm -rf clickhouse/docker/.data/clickhouse docker/.data
 
 ssh:
 	ssh $(SSH_OPTS) sandbox@localhost

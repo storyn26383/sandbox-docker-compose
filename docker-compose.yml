@@ -36,7 +36,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-sandbox}
     volumes:
-      - mysql-data:/var/lib/mysql
+      - ./docker/.data/mysql:/var/lib/mysql
 
   redis:
     image: redis:7-alpine
@@ -45,14 +45,10 @@ services:
     expose:
       - "6379"
     volumes:
-      - redis-data:/data
+      - ./docker/.data/redis:/data
 
   clickhouse:
     ports: !override []
 
   clickhouse-testing:
     ports: !override []
-
-volumes:
-  mysql-data:
-  redis-data:
