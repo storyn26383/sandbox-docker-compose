@@ -3,16 +3,16 @@ include:
     env_file: .env
 
 services:
-  dev:
+  workspace:
     build:
       context: .
       args:
         UID: ${HOST_UID:-1000}
         GID: ${HOST_GID:-1000}
-    container_name: sandbox-dev
+    container_name: sandbox-workspace
     tty: true
     stdin_open: true
-    working_dir: /app
+    working_dir: /home/sandbox/workspace
     environment:
       ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL}

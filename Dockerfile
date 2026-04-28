@@ -29,9 +29,7 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
     && mkdir -p /home/${USERNAME}/.ssh \
     && chown ${UID}:${GID} /home/${USERNAME}/.ssh \
-    && chmod 700 /home/${USERNAME}/.ssh \
-    && mkdir -p /app \
-    && chown ${UID}:${GID} /app
+    && chmod 700 /home/${USERNAME}/.ssh
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
@@ -44,6 +42,6 @@ RUN curl -fsSL https://bun.sh/install | bash
 RUN curl -sS https://getcomposer.org/installer \
     | php -- --install-dir=/usr/local/bin --filename=composer
 
-WORKDIR /app
+WORKDIR /home/sandbox/workspace
 EXPOSE 22
 CMD ["/usr/sbin/sshd", "-D", "-e"]

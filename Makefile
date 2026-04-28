@@ -25,7 +25,7 @@ stop:
 restart: stop start
 
 shell:
-	docker compose exec -u sandbox dev bash
+	docker compose exec -u sandbox workspace bash
 
 logs:
 	docker compose logs -f

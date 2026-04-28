@@ -2,7 +2,7 @@
 
 自己嘅開發沙盒，一個容器入面塞晒平時用嘅工具，再夾埋 MySQL / ClickHouse / Redis 三個 DB，方便試嘢、寫 demo、玩新 library 嗰陣唔使污染本機。
 
-ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。Claude 個人設定（skills / commands / settings）就用 [`storyn26383/.claude`](https://github.com/storyn26383/.claude) submodule 落到 `claude/`，再 mount 入 dev container 做 `/root/.claude`。
+ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。Claude 個人設定（skills / commands / settings）就用 [`storyn26383/.claude`](https://github.com/storyn26383/.claude) submodule 落到 `claude/`，再 mount 入 workspace container 做 `/home/sandbox/.claude`。
 
 ## 入面有咩 📦
 
@@ -27,7 +27,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 
 由於 host 上面已經有自己嘅 MySQL / Redis / ClickHouse 喺度跑，sandbox 嘅 DB **全部唔 publish 到 host**，避免 port 撞。要由 host 連入嚟就行 SSH tunnel（下面 [SSH Tunnel 連 DB](#ssh-tunnel-連-db-) section 講）。
 
-容器之間照常用 service name 通到，例如喺 dev 容器內 `mysql -h mysql`、`redis-cli -h redis`、`curl http://clickhouse:8123`。
+容器之間照常用 service name 通到，例如喺 workspace 容器內 `mysql -h mysql`、`redis-cli -h redis`、`curl http://clickhouse:8123`。
 
 ## 點樣開工 🚀
 
@@ -36,7 +36,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 ```bash
 git clone --recurse-submodules <呢個 repo 嘅 url>
 cd sandbox-docker-compose
-make init       # 拉 submodule、cp .env、build dev image，一句搞掂
+make init       # 拉 submodule、cp .env、build workspace image，一句搞掂
 make start
 ```
 
@@ -58,8 +58,8 @@ git submodule update --init --recursive
 make start      # 起所有 service
 make stop       # 全部停
 make restart    # 重啟
-make shell      # docker exec 入 dev container（pwd /app）
-make ssh        # 透過 sshd 入 dev container
+make shell      # docker exec 入 workspace container（pwd ~/workspace）
+make ssh        # 透過 sshd 入 workspace container
 make tunnel     # 開 SSH tunnel forward 所有 DB 到 localhost
 make logs       # tail 晒所有 log
 make reset      # 一鍵清晒（連 ClickHouse data 都冚）
@@ -86,7 +86,7 @@ ANTHROPIC_AUTH_TOKEN=你個 token
 ANTHROPIC_BASE_URL=你個 proxy / gateway URL
 ```
 
-寫入 `.env`（已 gitignore），`make start` 之後 `docker-compose.yml` 會自動 forward 入 dev container，`claude` 啟動時直接攞嚟用，唔使再 login。
+寫入 `.env`（已 gitignore），`make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，`claude` 啟動時直接攞嚟用，唔使再 login。
 
 ## SSH Tunnel 連 DB 🔌
 
@@ -117,7 +117,7 @@ redis-cli -h 127.0.0.1 -p 16379
 curl 'http://127.0.0.1:18123/?query=SELECT+1'
 ```
 
-**SSH 直入 dev container**（行任何指令都得）
+**SSH 直入 workspace container**（行任何指令都得）
 
 ```bash
 make ssh
@@ -129,7 +129,7 @@ ssh -p 2222 sandbox@localhost
 
 `.env` 入面改 `SANDBOX_SSH_PORT=...`，`make restart` 之後新 port 即時生效。
 
-**唔想用 SSH，淨係喺 dev container 入面做嘢**
+**唔想用 SSH，淨係喺 workspace container 入面做嘢**
 
 ```bash
 make shell
@@ -139,7 +139,7 @@ redis-cli -h redis
 curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
 
-如果有需要做 root 嘢（裝 apt package、改 system config），喺 dev shell 度行 `sudo` 就得（NOPASSWD 已經配好），或者 `docker compose exec dev bash` 直接以 root 入去。
+如果有需要做 root 嘢（裝 apt package、改 system config），喺 workspace shell 度行 `sudo` 就得（NOPASSWD 已經配好），或者 `docker compose exec workspace bash` 直接以 root 入去。
 
 ## 結構 🗂️
 
@@ -148,7 +148,7 @@ sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
 ├── .env / .env.example         # ClickHouse + MySQL credentials
 ├── Makefile                    # 全部 make 指令
-├── Dockerfile                  # dev 容器點 build
+├── Dockerfile                  # workspace 容器點 build
 ├── .data/                      # MySQL / Redis / workspace 資料 bind mount 落呢度（gitignore）
 ├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /home/sandbox/.claude
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
