@@ -10,7 +10,7 @@ SSH_OPTS = -p $(SANDBOX_SSH_PORT) -o StrictHostKeyChecking=no -o UserKnownHostsF
 
 init: .env
 	git submodule update --init --recursive
-	mkdir -p .data/coding
+	mkdir -p .data/workspace
 	docker compose build
 
 .env:
