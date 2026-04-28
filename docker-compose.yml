@@ -28,7 +28,7 @@ services:
       - clickhouse
 
   mysql:
-    image: mysql:8.0
+    image: mysql:8
     container_name: sandbox-mysql
     restart: unless-stopped
     expose:
