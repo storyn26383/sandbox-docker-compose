@@ -8,11 +8,13 @@ HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
 SSH_OPTS = -p $(SANDBOX_SSH_PORT) -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
-init:
+init: .env
 	git submodule update --init --recursive
-	test -f .env || cp .env.example .env
 	mkdir -p docker/.data/coding
 	docker compose build
+
+.env:
+	cp .env.example .env
 
 start:
 	docker compose up -d
