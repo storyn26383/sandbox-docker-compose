@@ -162,7 +162,7 @@ make reset
 
 會做兩樣嘢：
 
-1. `docker compose down` —— 停哂晒 service
+1. `docker compose down` —— 停晒所有 service
 2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis` —— ClickHouse / MySQL / Redis 資料一齊清（保留 `.data/workspace`）
 
 跟住 `make start` 就係全新一個。
