@@ -1,6 +1,6 @@
-[submodule "golden-clickhouse"]
-	path = golden-clickhouse
-	url = git@github.com:storyn26383/golden-clickhouse.git
 [submodule "claude"]
 	path = claude
 	url = git@github.com:storyn26383/.claude.git
+[submodule "clickhouse"]
+	path = clickhouse
+	url = git@github.com:storyn26383/golden-clickhouse.git

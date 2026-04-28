@@ -1,5 +1,5 @@
 include:
-  - path: ./golden-clickhouse/docker-compose.yml
+  - path: ./clickhouse/docker-compose.yml
     env_file: .env
 
 services:

@@ -27,7 +27,7 @@ logs:
 
 reset:
 	docker compose down -v
-	rm -rf golden-clickhouse/docker/.data/clickhouse
+	rm -rf clickhouse/docker/.data/clickhouse
 
 ssh:
 	ssh $(SSH_OPTS) root@localhost

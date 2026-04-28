@@ -2,7 +2,7 @@
 
 自己嘅開發沙盒，一個容器入面塞晒平時用嘅工具，再夾埋 MySQL / ClickHouse / Redis 三個 DB，方便試嘢、寫 demo、玩新 library 嗰陣唔使污染本機。
 
-ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse)，一齊跑，唔使重複維護。Claude 個人設定（skills / commands / settings）就用 [`storyn26383/.claude`](https://github.com/storyn26383/.claude) submodule 落到 `claude/`，再 mount 入 dev container 做 `/root/.claude`。
+ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。Claude 個人設定（skills / commands / settings）就用 [`storyn26383/.claude`](https://github.com/storyn26383/.claude) submodule 落到 `claude/`，再 mount 入 dev container 做 `/root/.claude`。
 
 ## 入面有咩 📦
 
@@ -152,12 +152,12 @@ curl 'http://clickhouse:8123/?query=SELECT+1'
 
 ```
 sandbox-docker-compose/
-├── docker-compose.yml          # 主 compose（include 埋 golden-clickhouse）
+├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
 ├── .env / .env.example         # ClickHouse + MySQL credentials
 ├── Makefile                    # 全部 make 指令
 ├── docker/dev/Dockerfile       # dev 容器點 build
 ├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /root/.claude
-└── golden-clickhouse/          # submodule，ClickHouse 嘅嘢全部喺呢度
+└── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```
 
 ## 想清乾淨重新嚟過 🧹
@@ -169,12 +169,12 @@ make reset
 會做兩樣嘢：
 
 1. `docker compose down -v` —— 停 service + 刪 named volume（MySQL / Redis 資料一齊冚）
-2. `rm -rf golden-clickhouse/docker/.data/clickhouse` —— ClickHouse 數據都清
+2. `rm -rf clickhouse/docker/.data/clickhouse` —— ClickHouse 數據都清
 
 跟住 `make start` 就係全新一個。
 
 ## 提一提 ⚠️
 
 - 要 Docker Compose **v2.20+**（用到 `include:` 指令）。Docker Desktop / OrbStack 2023-10 之後都得。
-- ClickHouse 嘅 XML config（servers / macros / zookeeper / cors / timezone）由 submodule 提供，唔好喺 sandbox 度改；要改就入 `golden-clickhouse` repo 改完 push。
+- ClickHouse 嘅 XML config（servers / macros / zookeeper / cors / timezone）由 submodule 提供，唔好喺 sandbox 度改；要改就入 `clickhouse/` 嗰個 submodule（remote 係 `storyn26383/golden-clickhouse`）改完 push。
 - Apple Silicon（M 系）行得通，全部 image / install script 都有 arm64 版。
