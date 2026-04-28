@@ -65,7 +65,7 @@ make logs       # tail 晒所有 log
 make reset      # 一鍵清晒（連 ClickHouse data 都冚）
 ```
 
-## Mount 自己個 project 入嚟做嘢 📂
+## Workspace 📂
 
 預設已經有一個 workspace mount：
 
@@ -76,19 +76,6 @@ make reset      # 一鍵清晒（連 ClickHouse data 都冚）
 `make init` 會幫你預先 `mkdir` 好個目錄。Host 上面用任何 IDE 直接 edit `./.data/coding/...`，容器內即時見到（`make ssh` 入去就喺 `~/coding`）。`./.data/` 已經 `.gitignore`，唔會污染 repo。
 
 因為 sandbox 用戶 UID/GID 跟住 host 一樣，permission 自動匹配，host 同容器寫嘅檔案兩邊都當係你本機 user 擁有。
-
-**仲想 mount 其他 host path？**
-
-喺 repo 根新增 `docker-compose.override.yml`（已 gitignore）：
-
-```yaml
-services:
-  dev:
-    volumes:
-      - ~/Coding/my-project:/app
-```
-
-之後 `make restart` 就會帶住個 mount。
 
 ## Claude Code 嘅認證 🔐
 
