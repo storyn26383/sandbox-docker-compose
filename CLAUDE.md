@@ -48,6 +48,7 @@ Claude Code 嘅 sandbox 唔畀 access Docker socket（OrbStack / Docker Desktop 
   - **`root`** —— sshd PID 1 必須 root 跑（auth、bind port），所以 image 嘅 `USER` 維持 root。`docker compose exec workspace bash` 預設都係 root；要 sandbox shell 就 `-u sandbox`（已喺 Makefile `make shell` 配好）。
 - Container 跑住 **sshd**（CMD `/usr/sbin/sshd -D -e`），host 嘅 `127.0.0.1:${SANDBOX_SSH_PORT}:22` 對住 container 22 port，畀 host 透過 SSH tunnel 連 DB。
 - SSH 認證**只接受 pubkey** + **禁止 root login**（`PermitRootLogin no` + `PasswordAuthentication no`），mount host 嘅 `${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}` 做 `/home/sandbox/.ssh/authorized_keys`。SSH 一律以 `sandbox` 登入（`make ssh` / `make tunnel` 已配好）。
+- Host 嘅 `~/.gitconfig` read-only mount 入 `/home/sandbox/.gitconfig`，咁容器內 `git commit` 會用返 host 嘅 user.name / user.email 同 alias。Host 改 → 容器即時生效。
 - Bun 系統級裝（`BUN_INSTALL=/usr/local`），唔放喺 `/root/.bun`，咁 sandbox 用戶都用到。
 - DB services（mysql / redis / clickhouse / clickhouse-testing）**全部唔 publish 到 host**，純內網。要 host 連 DB 一律行 `make tunnel`。**唔好提議直接 publish DB port** —— 用家本機已經有自己嘅 DB 跑緊，會撞 port。
 
