@@ -36,7 +36,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 ```bash
 git clone --recurse-submodules <呢個 repo 嘅 url>
 cd sandbox-docker-compose
-make init       # 拉 submodule、cp .env、build workspace image，一句搞掂
+make init       # 拉 submodule、cp .env、mkdir workspace、build image
 make start
 ```
 
@@ -55,6 +55,7 @@ git submodule update --init --recursive
 ## 平時點用 🎮
 
 ```bash
+make build      # build workspace image（改完 Dockerfile 行呢句）
 make start      # 起所有 service
 make stop       # 全部停
 make restart    # 重啟

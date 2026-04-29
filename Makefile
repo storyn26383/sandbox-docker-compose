@@ -1,4 +1,4 @@
-.PHONY: init start stop restart shell logs reset ssh tunnel
+.PHONY: init build start stop restart shell logs reset ssh tunnel
 
 -include .env
 export
@@ -10,13 +10,15 @@ GIT_USER_NAME := $(shell git config --get user.name)
 GIT_USER_EMAIL := $(shell git config --get user.email)
 SSH_OPTS = -p $(SANDBOX_SSH_PORT) -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
-init: .env
+init: .env build
 	git submodule update --init --recursive
 	mkdir -p .data/workspace
-	docker compose build
 
 .env:
 	cp .env.example .env
+
+build:
+	docker compose build
 
 start:
 	docker compose up -d
