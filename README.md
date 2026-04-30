@@ -75,7 +75,7 @@ make reset      # 一鍵清晒（連 ClickHouse data 都冚）
 
 `make init` 會幫你預先 `mkdir` 好個目錄。Host 上面用任何 IDE 直接 edit `./.data/workspace/...`，容器內即時見到（`make ssh` 入去就喺 `~/workspace`）。`./.data/` 已經 `.gitignore`，唔會污染 repo。
 
-因為 sandbox 用戶 UID/GID 跟住 host 一樣，permission 自動匹配，host 同容器寫嘅檔案兩邊都當係你本機 user 擁有。Host 嘅 `~/.gitconfig` 都 mount 落容器 `~/.gitconfig`（read-only），所以容器內 `git commit` 用嘅 user.name / user.email 同 host 一致。
+因為 sandbox 用戶 UID/GID 跟住 host 一樣，permission 自動匹配，host 同容器寫嘅檔案兩邊都當係你本機 user 擁有。`git` 嘅 user.name / user.email 喺 `make build` 嗰陣由 Makefile 從 host `git config` 攞返，build 入 image，commit 即用即得。
 
 ## Claude Code 嘅認證 🔐
 

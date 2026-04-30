@@ -9,6 +9,8 @@ services:
       args:
         UID: ${HOST_UID:-1000}
         GID: ${HOST_GID:-1000}
+        GIT_USER_NAME: ${GIT_USER_NAME}
+        GIT_USER_EMAIL: ${GIT_USER_EMAIL}
     container_name: sandbox-workspace
     tty: true
     stdin_open: true
@@ -20,7 +22,6 @@ services:
       - "127.0.0.1:${SANDBOX_SSH_PORT:-2222}:22"
     volumes:
       - ${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}:/home/sandbox/.ssh/authorized_keys:ro
-      - ${HOME}/.gitconfig:/home/sandbox/.gitconfig:ro
       - ./claude:/home/sandbox/.claude
       - ./.data/workspace:/home/sandbox/workspace
     depends_on:

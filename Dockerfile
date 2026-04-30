@@ -3,6 +3,8 @@ FROM phpswoole/swoole:5.1-php8.3
 ARG UID=1000
 ARG GID=1000
 ARG USERNAME=sandbox
+ARG GIT_USER_NAME=
+ARG GIT_USER_EMAIL=
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Hong_Kong
@@ -31,7 +33,8 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && chown ${UID}:${GID} /home/${USERNAME}/.ssh \
     && chmod 700 /home/${USERNAME}/.ssh \
     && echo "alias claude='claude --allow-dangerously-skip-permissions'" >> /home/${USERNAME}/.bashrc \
-    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc
+    && printf '[user]\n\tname = %s\n\temail = %s\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" > /home/${USERNAME}/.gitconfig \
+    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.gitconfig
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \

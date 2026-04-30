@@ -6,6 +6,8 @@ export
 SANDBOX_SSH_PORT ?= 2222
 HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
+GIT_USER_NAME := $(shell git config --get user.name)
+GIT_USER_EMAIL := $(shell git config --get user.email)
 SSH_OPTS = -p $(SANDBOX_SSH_PORT) -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
 init: .env
