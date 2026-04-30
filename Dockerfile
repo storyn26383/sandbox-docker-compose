@@ -29,7 +29,9 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
     && mkdir -p /home/${USERNAME}/.ssh \
     && chown ${UID}:${GID} /home/${USERNAME}/.ssh \
-    && chmod 700 /home/${USERNAME}/.ssh
+    && chmod 700 /home/${USERNAME}/.ssh \
+    && echo "alias claude='claude --allow-dangerously-skip-permissions'" >> /home/${USERNAME}/.bashrc \
+    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
