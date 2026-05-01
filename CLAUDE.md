@@ -60,6 +60,16 @@ Claude Code 嘅 sandbox 唔畀 access Docker socket（OrbStack / Docker Desktop 
 - `SANDBOX_SSH_PORT`（host 上面嘅 SSH port，default 2222）同 `SSH_PUBKEY`（authorized_keys 嘅來源，default `${HOME}/.ssh/id_ed25519.pub`）由 compose `${VAR:-default}` 解析。
 - `HOST_UID` / `HOST_GID` 由 Makefile 自動 `id -u` / `id -g` 注入並 export，唔放 `.env`，唔需要手動 set。**淨係透過 Makefile build / start**；如果直接 `docker compose build`，會 fallback 到 compose 預設嘅 `1000/1000`，會錯。
 
+## Commit 前
+
+每次 commit 之前都要檢查 `README.md` 有冇需要跟住改。如果改動會影響：
+
+- 結構描述（`Workspace`、`結構` section、mount 表）
+- 開工流程（`make` 指令、`.env` 變數、SSH / tunnel 用法）
+- Caveat 或者要記住嘅嘢（`提一提` section）
+
+就要順手更新 `README.md` 一齊 commit；如果完全唔關 README 嘅事，照 commit。
+
 ## 唔好做嘅嘢
 
 - **唔好幫手寫 Dockerfile health check / 多 stage build / production hardening**——呢個係 dev box，過度工程冇意義。
