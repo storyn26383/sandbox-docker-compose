@@ -151,7 +151,7 @@ sandbox-docker-compose/
 ├── Makefile                    # 全部 make 指令
 ├── Dockerfile                  # workspace 容器點 build
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
-├── .data/                      # MySQL / Redis 資料 bind mount 落呢度（gitignore）
+├── .data/                      # MySQL / Redis 資料 + Claude Code 狀態 bind mount 落呢度（gitignore）
 ├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /home/sandbox/.claude
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```

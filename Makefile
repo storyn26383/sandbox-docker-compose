@@ -12,7 +12,8 @@ SSH_OPTS = -p $(SANDBOX_SSH_PORT) -o StrictHostKeyChecking=no -o UserKnownHostsF
 
 init: .env build
 	git submodule update --init --recursive
-	mkdir -p workspace
+	mkdir -p workspace .data
+	touch .data/claude.json
 
 .env:
 	cp .env.example .env
