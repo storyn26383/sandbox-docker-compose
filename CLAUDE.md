@@ -1,77 +1,79 @@
 # CLAUDE.md
 
-呢個 repo 係 sasaya 自己用嘅開發沙盒（dev box）。下面係喺呢個 repo 做嘢嗰陣要記住嘅嘢。
+This repo is sasaya's personal dev sandbox (dev box). The notes below cover what to keep in mind when working in it.
 
-## 寫文件嘅口氣
+## Documentation tone
 
-呢個 repo 入面嘅 README、notes、提示文字全部都係 sasaya 自己睇嘅，**用口語廣東話 + emoji 都得**，唔使跟全域 CLAUDE.md 嗰個書面語 / 排版指北規則。
+READMEs, notes, and inline prompt text in this repo are read by sasaya only — **colloquial Cantonese + emoji is fine**, no need to follow the global CLAUDE.md formal-writing / typography rules.
 
-例外：commit message、code comment（如真係要寫）、push 出去嘅嘢，照跟全域規則用英文 / 書面語。
+`CLAUDE.md` itself is the exception: it must be written in English.
 
-## Submodule 紀律
+Same for commit messages, code comments (when actually needed), and anything pushed externally — follow the global rules and use English / formal style.
 
-呢個 repo 有兩個 submodule：
+## Submodule discipline
 
-| Path | Remote | 用途 |
+This repo has two submodules:
+
+| Path | Remote | Purpose |
 |---|---|---|
-| `clickhouse/` | `git@github.com:storyn26383/golden-clickhouse.git` | ClickHouse service 同 config |
-| `claude/` | `git@github.com:storyn26383/.claude.git` | sasaya 個人 Claude 設定，mount 入 workspace container 做 `/home/sandbox/.claude` |
+| `clickhouse/` | `git@github.com:storyn26383/golden-clickhouse.git` | ClickHouse service and config |
+| `claude/` | `git@github.com:storyn26383/.claude.git` | sasaya's personal Claude settings, mounted into the workspace container as `/home/sandbox/.claude` |
 
-- **唔好喺 sandbox 呢度直接改 submodule 入面任何檔案**（包括 ClickHouse XML config、Claude skills/commands/settings）。
-- 要改 ClickHouse / Claude 設定就 `cd <submodule>`，喺嗰邊 commit、push，再返嚟 sandbox 度 update submodule pointer。
-- `claude/` 比較易變 dirty —— 因為 workspace container 入面 claude-code 會寫 runtime state（projects/、scheduled_tasks.json 等）入 mount，呢啲跟 `claude` submodule 自己嘅 `.gitignore` 處理。如果見到 dirty，要分清楚係 runtime 產物（無視）定真係改咗 config（去處理）。
-- `claude/` mount 入 workspace container 之後喺容器內叫 `/home/sandbox/.claude`，唔係 `claude` —— mount target 唔同 path name。
+- **Don't edit any file inside a submodule from this sandbox** (including ClickHouse XML config and Claude skills/commands/settings).
+- To change ClickHouse / Claude settings, `cd <submodule>`, commit and push from there, then come back to the sandbox and update the submodule pointer.
+- `claude/` goes dirty easily — claude-code inside the workspace container writes runtime state (`projects/`, `scheduled_tasks.json`, etc.) into the mount; those are handled by the `claude` submodule's own `.gitignore`. When you see dirty state, distinguish runtime artifacts (ignore) from real config edits (handle them).
+- After mounting, `claude/` is exposed inside the container as `/home/sandbox/.claude`, not `claude` — the mount target name differs from the host path.
 
-## Docker 操作嘅限制
+## Docker access is restricted
 
-Claude Code 嘅 sandbox 唔畀 access Docker socket（OrbStack / Docker Desktop 都係）。所以：
+The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Desktop alike). Therefore:
 
-- `docker compose build`、`docker compose up`、`docker ps` 等指令喺 Claude session 入面**會 fail**。
-- 要用家自己喺 terminal 行，或者你出指令叫佢行。
-- 唔好嘥時間試嚟試去，直接話畀佢知要佢自己跑。
+- `docker compose build`, `docker compose up`, `docker ps`, etc. **fail** inside a Claude session.
+- The user has to run them in their own terminal, or you tell them what to run.
+- Don't waste cycles retrying — just tell them to run it themselves.
 
-## Compose include 結構
+## Compose include structure
 
-- `docker-compose.yml` 用 `include:` 帶入 `clickhouse/docker-compose.yml`（即 `golden-clickhouse` submodule）。
-- 顯式寫咗 `env_file: .env`，因為 submodule 入面個 `.env` 係 broken symlink (`../api/.env`)。
-- ClickHouse XML config 入面 `<host>clickhouse</host>` 係 service name，唔係 container name —— include 之後仲係喺同一個 network，仍然 resolve 到。
-- 嗰邊帶過嚟嘅 `clickhouse` / `clickhouse-testing` 嘅 `ports:` 喺 sandbox 度用 `ports: !override []` **強制清空**（host 唔 publish），呢個係刻意嘅設計。
-- 需要 Compose **v2.24+**（用到 `!override` tag）。
+- `docker-compose.yml` uses `include:` to pull in `clickhouse/docker-compose.yml` (the `golden-clickhouse` submodule).
+- An explicit `env_file: .env` is set because the submodule's own `.env` is a broken symlink (`../api/.env`).
+- ClickHouse XML config has `<host>clickhouse</host>` referring to the service name, not the container name — after `include:` the services share a network so it still resolves.
+- The `clickhouse` / `clickhouse-testing` `ports:` brought in from the submodule are forcibly emptied with `ports: !override []` (host doesn't publish them) — this is intentional.
+- Requires Compose **v2.24+** (uses the `!override` tag).
 
-## Dev container 設計原則
+## Dev container design principles
 
-- **預設 mount `./.data/workspace` 落 `/home/sandbox/workspace`** 做 workspace（host IDE edit、容器內 SSH/`make shell` 入去 `~/workspace` 即見）。`make init` 會預先 `mkdir`，避免 Docker daemon 以 root 創建令 sandbox 寫唔到。要加其他 mount 直接改 `docker-compose.yml`。
-- Base image 用 `phpswoole/swoole:5.1-php8.3`（Debian bookworm），唔好提議轉 Alpine —— alpine variant 唔包 dev 工具，要重新填好多嘢。
-- WORKDIR 係 `/home/sandbox/workspace`（即 sandbox 用戶嘅 `~/workspace`），同 host bind mount target 對齊，`make shell` / SSH 入去自然喺度。
-- 容器內有兩個身份：
-  - **`sandbox`** —— Build args `UID` / `GID` 跟 host 一致（`HOST_UID`/`HOST_GID`，default 1000/1000），有 NOPASSWD sudo。SSH login、mount 入嚟嘅 project 寫嘢、`make shell` 全部用 `sandbox`。
-  - **`root`** —— sshd PID 1 必須 root 跑（auth、bind port），所以 image 嘅 `USER` 維持 root。`docker compose exec workspace bash` 預設都係 root；要 sandbox shell 就 `-u sandbox`（已喺 Makefile `make shell` 配好）。
-- Container 跑住 **sshd**（CMD `/usr/sbin/sshd -D -e`），host 嘅 `127.0.0.1:${SANDBOX_SSH_PORT}:22` 對住 container 22 port，畀 host 透過 SSH tunnel 連 DB。
-- SSH 認證**只接受 pubkey** + **禁止 root login**（`PermitRootLogin no` + `PasswordAuthentication no`），mount host 嘅 `${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}` 做 `/home/sandbox/.ssh/authorized_keys`。SSH 一律以 `sandbox` 登入（`make ssh` / `make tunnel` 已配好）。
-- `git` 嘅 user.name / user.email 由 Makefile 用 `git config --get` 從 host 攞，經 build args (`GIT_USER_NAME` / `GIT_USER_EMAIL`) 傳入 Dockerfile，再寫入 `/home/sandbox/.gitconfig`。Host 改完 → `make build` 就 sync。
-- Bun 系統級裝（`BUN_INSTALL=/usr/local`），唔放喺 `/root/.bun`，咁 sandbox 用戶都用到。
-- DB services（mysql / redis / clickhouse / clickhouse-testing）**全部唔 publish 到 host**，純內網。要 host 連 DB 一律行 `make tunnel`。**唔好提議直接 publish DB port** —— 用家本機已經有自己嘅 DB 跑緊，會撞 port。
+- **Mounts `./.data/workspace` to `/home/sandbox/workspace`** as the default workspace (host IDE edits show up immediately in the container under `~/workspace` via SSH or `make shell`). `make init` pre-creates the directory so the Docker daemon doesn't create it as root and break sandbox writes. Add other mounts by editing `docker-compose.yml` directly.
+- Base image is `phpswoole/swoole:5.1-php8.3` (Debian bookworm); don't suggest switching to Alpine — the alpine variant doesn't ship dev tooling and would need a lot of plumbing.
+- WORKDIR is `/home/sandbox/workspace` (the sandbox user's `~/workspace`), aligned with the host bind-mount target — `make shell` / SSH lands you there naturally.
+- Two identities exist inside the container:
+  - **`sandbox`** — Build args `UID` / `GID` track the host (`HOST_UID` / `HOST_GID`, defaults 1000/1000), with NOPASSWD sudo. SSH login, project writes inside the mount, and `make shell` all use `sandbox`.
+  - **`root`** — sshd as PID 1 must run as root (auth, port binding), so the image's `USER` stays root. `docker compose exec workspace bash` defaults to root too; for a sandbox shell, use `-u sandbox` (already wired into `make shell`).
+- The container runs **sshd** (`CMD /usr/sbin/sshd -D -e`); the host maps `127.0.0.1:${SANDBOX_SSH_PORT}:22` to container port 22 so DBs are reachable from the host through SSH tunnels.
+- SSH auth **only accepts pubkey** and **disallows root login** (`PermitRootLogin no` + `PasswordAuthentication no`); the host's `${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}` is mounted as `/home/sandbox/.ssh/authorized_keys`. SSH always logs in as `sandbox` (`make ssh` / `make tunnel` are wired up).
+- `git` user.name / user.email come from the host via `git config --get` in the Makefile, are passed to the Dockerfile as build args (`GIT_USER_NAME` / `GIT_USER_EMAIL`), and end up in `/home/sandbox/.gitconfig`. After updating the host config, `make build` syncs.
+- Bun is installed system-wide (`BUN_INSTALL=/usr/local`), not under `/root/.bun`, so the sandbox user can use it.
+- DB services (`mysql` / `redis` / `clickhouse` / `clickhouse-testing`) are **all unpublished to the host** — internal network only. To reach them from the host, run `make tunnel`. **Don't suggest publishing DB ports directly** — the user already runs their own DBs locally and ports would clash.
 
-## `.env` / 環境變數
+## `.env` / environment variables
 
-- `.env.example` 係單一真相 —— 改 env key 一定要兩邊（`.env.example` 同 `.env`）一齊改。
-- 預設值適合本機 chill 用（root / default），唔好提議改成「production-grade」。
-- `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` 由 `.env` 經 `docker-compose.yml` `environment:` forward 入 workspace container 畀 claude-code 用。**唔好提議用 OAuth flow** —— 已經設計成靠 token + proxy URL，唔需要 login。
-- `SANDBOX_SSH_PORT`（host 上面嘅 SSH port，default 2222）同 `SSH_PUBKEY`（authorized_keys 嘅來源，default `${HOME}/.ssh/id_ed25519.pub`）由 compose `${VAR:-default}` 解析。
-- `HOST_UID` / `HOST_GID` 由 Makefile 自動 `id -u` / `id -g` 注入並 export，唔放 `.env`，唔需要手動 set。**淨係透過 Makefile build / start**；如果直接 `docker compose build`，會 fallback 到 compose 預設嘅 `1000/1000`，會錯。
+- `.env.example` is the single source of truth — when an env key changes, update both `.env.example` and `.env`.
+- Defaults are tuned for casual local use (`root` / `default`); don't suggest making them "production-grade".
+- `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` are forwarded from `.env` into the workspace container's `environment:` block in `docker-compose.yml` for claude-code. **Don't suggest using OAuth flow** — this is intentionally designed around token + proxy URL, login isn't needed.
+- `SANDBOX_SSH_PORT` (host SSH port, default `2222`) and `SSH_PUBKEY` (source for `authorized_keys`, default `${HOME}/.ssh/id_ed25519.pub`) are resolved through compose's `${VAR:-default}` syntax.
+- `HOST_UID` / `HOST_GID` are auto-injected by the Makefile via `id -u` / `id -g` and exported; they're not stored in `.env` and don't need to be set manually. **Only build / start through the Makefile** — calling `docker compose build` directly falls back to compose's default `1000/1000` and breaks ownership.
 
-## Commit 前
+## Before committing
 
-每次 commit 之前都要檢查 `README.md` 有冇需要跟住改。如果改動會影響：
+Before each commit, check whether `README.md` needs to follow. If the change touches:
 
-- 結構描述（`Workspace`、`結構` section、mount 表）
-- 開工流程（`make` 指令、`.env` 變數、SSH / tunnel 用法）
-- Caveat 或者要記住嘅嘢（`提一提` section）
+- Structural descriptions (`Workspace` section, `結構` section, mount tables)
+- Onboarding workflow (`make` commands, `.env` variables, SSH / tunnel usage)
+- Caveats worth remembering (`提一提` section)
 
-就要順手更新 `README.md` 一齊 commit；如果完全唔關 README 嘅事，照 commit。
+update `README.md` together in the same commit. If the change is unrelated to the README, just commit.
 
-## 唔好做嘅嘢
+## Don't
 
-- **唔好幫手寫 Dockerfile health check / 多 stage build / production hardening**——呢個係 dev box，過度工程冇意義。
-- **唔好加 backwards-compat 嘅 shim**（例如 PHP 8.2 fallback、Swoole 4.x 兼容）——一個版本搞掂。
-- **唔好擅自改 ClickHouse port / service name**——會破壞 `clickhouse/` submodule 內 XML hardcoded 嘅 host reference。
+- **Don't write Dockerfile health checks / multi-stage builds / production hardening** — this is a dev box, over-engineering is pointless.
+- **Don't add backwards-compat shims** (e.g. PHP 8.2 fallback, Swoole 4.x compatibility) — one version is enough.
+- **Don't change the ClickHouse port / service name unilaterally** — it would break host references hardcoded in the `clickhouse/` submodule's XML.
