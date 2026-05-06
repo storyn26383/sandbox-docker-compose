@@ -24,6 +24,7 @@ services:
       - ${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}:/home/sandbox/.ssh/authorized_keys:ro
       - ./claude:/home/sandbox/.claude
       - ./.data/claude.json:/home/sandbox/.claude.json
+      - ./.data/codex:/home/sandbox/.codex
       - ./workspace:/home/sandbox/workspace
     depends_on:
       - mysql

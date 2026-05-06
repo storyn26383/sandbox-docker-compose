@@ -23,6 +23,7 @@ This repo has two submodules:
 - To change ClickHouse / Claude settings, `cd <submodule>`, commit and push from there, then come back to the sandbox and update the submodule pointer.
 - `claude/` goes dirty easily — claude-code inside the workspace container writes runtime state (`projects/`, `scheduled_tasks.json`, etc.) into the mount; those are handled by the `claude` submodule's own `.gitignore`. When you see dirty state, distinguish runtime artifacts (ignore) from real config edits (handle them).
 - After mounting, `claude/` is exposed inside the container as `/home/sandbox/.claude`, not `claude` — the mount target name differs from the host path.
+- Codex CLI runtime state is stored under `./.data/codex` and mounted as `/home/sandbox/.codex`; this is local state, not tracked config.
 
 ## Docker access is restricted
 
@@ -52,6 +53,7 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - SSH auth **only accepts pubkey** and **disallows root login** (`PermitRootLogin no` + `PasswordAuthentication no`); the host's `${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}` is mounted as `/home/sandbox/.ssh/authorized_keys`. SSH always logs in as `sandbox` (`make ssh` / `make tunnel` are wired up).
 - `git` user.name / user.email come from the host via `git config --get` in the Makefile, are passed to the Dockerfile as build args (`GIT_USER_NAME` / `GIT_USER_EMAIL`), and end up in `/home/sandbox/.gitconfig`. After updating the host config, `make build` syncs.
 - Bun is installed system-wide (`BUN_INSTALL=/usr/local`), not under `/root/.bun`, so the sandbox user can use it.
+- Codex CLI is installed with `npm install -g @openai/codex`. The `codex` shell alias intentionally adds `--dangerously-bypass-approvals-and-sandbox --skip-git-repo-check` because this dev box is already externally sandboxed by Docker.
 - DB services (`mysql` / `redis` / `clickhouse` / `clickhouse-testing`) are **all unpublished to the host** — internal network only. To reach them from the host, run `make tunnel`. **Don't suggest publishing DB ports directly** — the user already runs their own DBs locally and ports would clash.
 
 ## `.env` / environment variables
@@ -59,6 +61,7 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - `.env.example` is the single source of truth — when an env key changes, update both `.env.example` and `.env`.
 - Defaults are tuned for casual local use (`root` / `default`); don't suggest making them "production-grade".
 - `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` are forwarded from `.env` into the workspace container's `environment:` block in `docker-compose.yml` for claude-code. **Don't suggest using OAuth flow** — this is intentionally designed around token + proxy URL, login isn't needed.
+- Codex uses ChatGPT login, not API key env vars in this repo. `make init` creates `.data/codex/config.toml` with `cli_auth_credentials_store = "file"` so auth is cached in the mounted `CODEX_HOME`; use `codex login --device-auth` from inside the workspace container for first-time login.
 - `SANDBOX_SSH_PORT` (host SSH port, default `2222`) and `SSH_PUBKEY` (source for `authorized_keys`, default `${HOME}/.ssh/id_ed25519.pub`) are resolved through compose's `${VAR:-default}` syntax.
 - `HOST_UID` / `HOST_GID` are auto-injected by the Makefile via `id -u` / `id -g` and exported; they're not stored in `.env` and don't need to be set manually. **Only build / start through the Makefile** — calling `docker compose build` directly falls back to compose's default `1000/1000` and breaks ownership.
 

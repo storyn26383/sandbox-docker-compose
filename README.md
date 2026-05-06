@@ -11,7 +11,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 | 類別 | 有咩 |
 |---|---|
 | 🐘 程式語言 | PHP 8.3、Swoole 5.1、Bun、Node.js 22 |
-| 🤖 CLI | claude-code、jq、ripgrep、fzf、htop |
+| 🤖 CLI | claude-code、codex、jq、ripgrep、fzf、htop |
 | 🔨 Build | composer、git、build-essential |
 | 🗄️ DB client | mysql、redis-cli |
 | 🌐 網絡 | curl、wget、ping、dig、nc |
@@ -89,6 +89,18 @@ ANTHROPIC_BASE_URL=你個 proxy / gateway URL
 
 寫入 `.env`（已 gitignore），`make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，`claude` 啟動時直接攞嚟用，唔使再 login。
 
+## Codex CLI 嘅認證 🔐
+
+Codex 走 ChatGPT login。第一次入 workspace container 後行：
+
+```bash
+codex login --device-auth
+```
+
+跟住用 browser 開佢畀你嘅 link，輸入 device code 完成登入。登入資料會存喺 host 嘅 `.data/codex/`，再 mount 入 container 做 `/home/sandbox/.codex`，所以 rebuild / restart container 之後唔使重新 login。
+
+`codex` 已經有 alias 預設加 `--dangerously-bypass-approvals-and-sandbox --skip-git-repo-check`。呢個 sandbox 本身已經喺 Docker container 入面，日常用法會接近 `claude` 嗰種免確認流程。
+
 ## SSH Tunnel 連 DB 🔌
 
 Dev container 入面跑住 sshd，host 嘅 `127.0.0.1:2222` 對住容器嘅 `22`。SSH 認證用你 host 嘅 `~/.ssh/id_ed25519.pub`（mount 入容器做 `/home/sandbox/.ssh/authorized_keys`），login 帳戶係 `sandbox`（root login disabled），唔使輸密碼。`sandbox` 用戶嘅 UID/GID 跟你 host 一樣，喺 mount 入嚟嘅 project 度寫嘅檔案會係你本機 user 擁有。
@@ -151,7 +163,7 @@ sandbox-docker-compose/
 ├── Makefile                    # 全部 make 指令
 ├── Dockerfile                  # workspace 容器點 build
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
-├── .data/                      # MySQL / Redis 資料 + Claude Code 狀態 bind mount 落呢度（gitignore）
+├── .data/                      # MySQL / Redis 資料 + Claude Code / Codex 狀態 bind mount 落呢度（gitignore）
 ├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /home/sandbox/.claude
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```

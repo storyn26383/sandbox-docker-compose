@@ -10,13 +10,20 @@ GIT_USER_NAME := $(shell git config --get user.name)
 GIT_USER_EMAIL := $(shell git config --get user.email)
 SSH_OPTS = -p $(SANDBOX_SSH_PORT) -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
-init: .env build
+init: .env build .data/claude.json .data/codex/config.toml
 	git submodule update --init --recursive
-	mkdir -p workspace .data
-	touch .data/claude.json
+	mkdir -p workspace
 
 .env:
 	cp .env.example .env
+
+.data/claude.json:
+	mkdir -p .data
+	echo {} > .data/claude.json
+
+.data/codex/config.toml:
+	mkdir -p .data/codex
+	echo 'cli_auth_credentials_store = "file"' > .data/codex/config.toml
 
 build:
 	docker compose build

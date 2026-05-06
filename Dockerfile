@@ -33,12 +33,13 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && chown ${UID}:${GID} /home/${USERNAME}/.ssh \
     && chmod 700 /home/${USERNAME}/.ssh \
     && echo "alias claude='claude --allow-dangerously-skip-permissions'" >> /home/${USERNAME}/.bashrc \
+    && echo "alias codex='codex --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check'" >> /home/${USERNAME}/.bashrc \
     && printf '[user]\n\tname = %s\n\temail = %s\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" > /home/${USERNAME}/.gitconfig \
     && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.gitconfig
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g @anthropic-ai/claude-code \
+    && npm install -g @anthropic-ai/claude-code @openai/codex \
     && rm -rf /var/lib/apt/lists/*
 
 ENV BUN_INSTALL=/usr/local
