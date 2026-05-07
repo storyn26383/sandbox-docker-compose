@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         iputils-ping dnsutils netcat-openbsd \
         locales tzdata \
         default-mysql-client redis-tools \
+        libmpdec-dev \
     && locale-gen en_US.UTF-8 zh_HK.UTF-8 \
     && mkdir -p /run/sshd \
     && sed -ri \
@@ -35,7 +36,8 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && echo "alias claude='claude --allow-dangerously-skip-permissions'" >> /home/${USERNAME}/.bashrc \
     && echo "alias codex='codex --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check'" >> /home/${USERNAME}/.bashrc \
     && printf '[user]\n\tname = %s\n\temail = %s\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" > /home/${USERNAME}/.gitconfig \
-    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.gitconfig
+    && printf '[client]\nssl=0\n' > /home/${USERNAME}/.my.cnf \
+    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.gitconfig /home/${USERNAME}/.my.cnf
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
@@ -47,6 +49,9 @@ RUN curl -fsSL https://bun.sh/install | bash
 
 RUN curl -sS https://getcomposer.org/installer \
     | php -- --install-dir=/usr/local/bin --filename=composer
+
+RUN pecl install decimal-1.5.0 \
+    && docker-php-ext-enable decimal
 
 WORKDIR /home/sandbox/workspace
 EXPOSE 22
