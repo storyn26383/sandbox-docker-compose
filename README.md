@@ -99,7 +99,7 @@ codex login --device-auth
 
 跟住用 browser 開佢畀你嘅 link，輸入 device code 完成登入。登入資料會存喺 host 嘅 `.data/codex/`，再 mount 入 container 做 `/home/sandbox/.codex`，所以 rebuild / restart container 之後唔使重新 login。
 
-`codex` 已經有 alias 預設加 `--dangerously-bypass-approvals-and-sandbox --skip-git-repo-check`。呢個 sandbox 本身已經喺 Docker container 入面，日常用法會接近 `claude` 嗰種免確認流程。
+`codex` 已經有 alias 預設加 `--dangerously-bypass-approvals-and-sandbox`。呢個 sandbox 本身已經喺 Docker container 入面，日常用法會接近 `claude` 嗰種免確認流程。
 
 ## SSH Tunnel 連 DB 🔌
 

@@ -53,7 +53,7 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - SSH auth **only accepts pubkey** and **disallows root login** (`PermitRootLogin no` + `PasswordAuthentication no`); the host's `${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}` is mounted as `/home/sandbox/.ssh/authorized_keys`. SSH always logs in as `sandbox` (`make ssh` / `make tunnel` are wired up).
 - `git` user.name / user.email come from the host via `git config --get` in the Makefile, are passed to the Dockerfile as build args (`GIT_USER_NAME` / `GIT_USER_EMAIL`), and end up in `/home/sandbox/.gitconfig`. After updating the host config, `make build` syncs.
 - Bun is installed system-wide (`BUN_INSTALL=/usr/local`), not under `/root/.bun`, so the sandbox user can use it.
-- Codex CLI is installed with `npm install -g @openai/codex`. The `codex` shell alias intentionally adds `--dangerously-bypass-approvals-and-sandbox --skip-git-repo-check` because this dev box is already externally sandboxed by Docker.
+- Codex CLI is installed with `npm install -g @openai/codex`. The `codex` shell alias intentionally adds `--dangerously-bypass-approvals-and-sandbox` because this dev box is already externally sandboxed by Docker.
 - DB services (`mysql` / `redis` / `clickhouse` / `clickhouse-testing`) are **all unpublished to the host** — internal network only. To reach them from the host, run `make tunnel`. **Don't suggest publishing DB ports directly** — the user already runs their own DBs locally and ports would clash.
 
 ## `.env` / environment variables
