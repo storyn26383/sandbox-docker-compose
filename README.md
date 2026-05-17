@@ -89,6 +89,16 @@ ANTHROPIC_BASE_URL=你個 proxy / gateway URL
 
 寫入 `.env`（已 gitignore），`make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，`claude` 啟動時直接攞嚟用，唔使再 login。
 
+## GitHub CLI 嘅認證 🔐
+
+`gh` 用 `GH_TOKEN`。喺 `.env` 寫入：
+
+```env
+GH_TOKEN=你個 GitHub token
+```
+
+`make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，`gh` 會直接讀呢個 token，唔使再行 `gh auth login`。
+
 ## Codex CLI 嘅認證 🔐
 
 Codex 走 ChatGPT login。第一次入 workspace container 後行：

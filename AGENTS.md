@@ -62,6 +62,7 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - `.env.example` is the single source of truth — when an env key changes, update both `.env.example` and `.env`.
 - Defaults are tuned for casual local use (`root` / `default`); don't suggest making them "production-grade".
 - `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` are forwarded from `.env` into the workspace container's `environment:` block in `docker-compose.yml` for claude-code. **Don't suggest using OAuth flow** — this is intentionally designed around token + proxy URL, login isn't needed.
+- `GH_TOKEN` is forwarded from `.env` into the workspace container for GitHub CLI. Prefer this non-interactive token path over `gh auth login`.
 - Codex uses ChatGPT login, not API key env vars in this repo. `make init` creates `.data/codex/config.toml` with `cli_auth_credentials_store = "file"` so auth is cached in the mounted `CODEX_HOME`; use `codex login --device-auth` from inside the workspace container for first-time login.
 - `SANDBOX_SSH_PORT` (host SSH port, default `2222`) and `SSH_PUBKEY` (source for `authorized_keys`, default `${HOME}/.ssh/id_ed25519.pub`) are resolved through compose's `${VAR:-default}` syntax.
 - `HOST_UID` / `HOST_GID` are auto-injected by the Makefile via `id -u` / `id -g` and exported; they're not stored in `.env` and don't need to be set manually. **Only build / start through the Makefile** — calling `docker compose build` directly falls back to compose's default `1000/1000` and breaks ownership.
