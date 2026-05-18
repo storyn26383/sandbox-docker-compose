@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         git vim sudo openssh-client openssh-server unzip zip \
-        gh jq ripgrep fzf htop \
+        gh jq ripgrep fzf htop direnv \
         iputils-ping dnsutils netcat-openbsd \
         locales tzdata \
         default-mysql-client redis-tools \
@@ -41,9 +41,11 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && chmod 700 /home/${USERNAME}/.ssh \
     && echo "alias claude='claude --allow-dangerously-skip-permissions'" >> /home/${USERNAME}/.bashrc \
     && echo "alias codex='codex --dangerously-bypass-approvals-and-sandbox'" >> /home/${USERNAME}/.bashrc \
-    && printf '[user]\n\tname = %s\n\temail = %s\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" > /home/${USERNAME}/.gitconfig \
+    && echo 'eval "$(direnv hook bash)"' >> /home/${USERNAME}/.bashrc \
+    && printf '[user]\n\tname = %s\n\temail = %s\n[core]\n\texcludesfile = /home/%s/.gitignore_global\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" "${USERNAME}" > /home/${USERNAME}/.gitconfig \
+    && printf '.envrc\n' > /home/${USERNAME}/.gitignore_global \
     && printf '[client]\nssl=0\n' > /home/${USERNAME}/.my.cnf \
-    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.gitconfig /home/${USERNAME}/.my.cnf
+    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.gitconfig /home/${USERNAME}/.gitignore_global /home/${USERNAME}/.my.cnf
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
