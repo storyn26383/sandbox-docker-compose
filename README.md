@@ -101,7 +101,20 @@ GH_TOKEN=你個 GitHub token
 
 ## Codex CLI 嘅認證 🔐
 
-Codex 走 ChatGPT login。第一次入 workspace container 後行：
+兩條路任揀，全部由 `.env` 控制。
+
+**A. 自訂 proxy（同 claude 一樣，env var 直通）**
+
+```env
+CODEX_AUTH_TOKEN=你個 token
+CODEX_BASE_URL=你個 OpenAI-compatible proxy URL（chat completions）
+```
+
+寫入 `.env`，`make start` 之後 `docker-compose.yml` 自動 forward 入 workspace container。`codex` 已經被一個 shell function 包住：行命令時偵測到兩條 env 都有值，會自動補 `-c model_provider=...`、`base_url`、`wire_api=chat`、`requires_openai_auth=false` 等 inline override，直接指去你嘅 proxy。
+
+**B. ChatGPT login（fallback，env 留空就行呢條）**
+
+兩條 `CODEX_*` env 任何一條空白，`codex` function 會 fallback 行返原本流程。第一次入 workspace container 後行：
 
 ```bash
 codex login --device-auth
@@ -109,7 +122,7 @@ codex login --device-auth
 
 跟住用 browser 開佢畀你嘅 link，輸入 device code 完成登入。登入資料會存喺 host 嘅 `.data/codex/`，再 mount 入 container 做 `/home/sandbox/.codex`，所以 rebuild / restart container 之後唔使重新 login。
 
-`codex` 已經有 alias 預設加 `--dangerously-bypass-approvals-and-sandbox`。呢個 sandbox 本身已經喺 Docker container 入面，日常用法會接近 `claude` 嗰種免確認流程。
+兩條路都已經預設加 `--dangerously-bypass-approvals-and-sandbox`。呢個 sandbox 本身已經喺 Docker container 入面，日常用法會接近 `claude` 嗰種免確認流程。
 
 ## SSH Tunnel 連 DB 🔌
 
@@ -169,7 +182,7 @@ curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
 sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
-├── .env / .env.example         # ClickHouse + MySQL credentials
+├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / Codex / gh token
 ├── Makefile                    # 全部 make 指令
 ├── Dockerfile                  # workspace 容器點 build
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
