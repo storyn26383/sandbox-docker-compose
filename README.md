@@ -107,10 +107,12 @@ GH_TOKEN=你個 GitHub token
 
 ```env
 CODEX_AUTH_TOKEN=你個 token
-CODEX_BASE_URL=你個 OpenAI-compatible proxy URL（chat completions）
+CODEX_BASE_URL=你個 Responses API endpoint
 ```
 
-寫入 `.env`，`make start` 之後 `docker-compose.yml` 自動 forward 入 workspace container。`codex` 已經被一個 shell function 包住：行命令時偵測到兩條 env 都有值，會自動補 `-c model_provider=...`、`base_url`、`wire_api=chat`、`requires_openai_auth=false` 等 inline override，直接指去你嘅 proxy。
+寫入 `.env`，`make start` 之後 `docker-compose.yml` 自動 forward 入 workspace container。`codex` 已經被一個 shell function 包住：行命令時偵測到兩條 env 都有值，會自動補 `-c model_provider=...`、`base_url`、`wire_api=responses`、`requires_openai_auth=false` 等 inline override，直接指去你嘅 proxy。
+
+⚠️ Codex CLI 由 2026/02 起 drop 咗 chat completions（`wire_api = "chat"`），淨返 OpenAI **Responses API**（`/v1/responses`）一條路。所以 `CODEX_BASE_URL` 指住嘅 endpoint **一定要識講 Responses API**（OpenAI 本家、Azure OpenAI、或者啲走 Responses-native 嘅 proxy）。如果你嘅 gateway 淨係識 chat completions（例如純 Anthropic-style proxy / OpenRouter），就要中間夾一層 translation bridge（[VibeAround](https://github.com/jazzenchen/VibeAround) 之類），或者乾脆 fallback 行 ChatGPT login。
 
 **B. ChatGPT login（fallback，env 留空就行呢條）**
 
