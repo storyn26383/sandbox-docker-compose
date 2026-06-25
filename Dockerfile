@@ -58,7 +58,8 @@ RUN curl -fsSL https://bun.sh/install | bash
 RUN curl -sS https://getcomposer.org/installer \
     | php -- --install-dir=/usr/local/bin --filename=composer
 
-RUN pecl install decimal-1.5.0 \
+RUN docker-php-ext-install bcmath \
+    && pecl install decimal-1.5.0 \
     && docker-php-ext-enable decimal
 
 WORKDIR /home/sandbox/workspace
