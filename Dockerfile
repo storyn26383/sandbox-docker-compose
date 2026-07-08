@@ -16,10 +16,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && wget -nv -O /etc/apt/keyrings/githubcli-archive-keyring.gpg https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+    && wget -nv -O /etc/apt/keyrings/cloudflare-main.gpg https://pkg.cloudflare.com/cloudflare-main.gpg \
+    && chmod go+r /etc/apt/keyrings/cloudflare-main.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared bookworm main" > /etc/apt/sources.list.d/cloudflared.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         git vim sudo openssh-client openssh-server unzip zip \
-        gh jq ripgrep fzf htop direnv \
+        gh cloudflared jq ripgrep fzf htop direnv \
         iputils-ping dnsutils netcat-openbsd \
         locales tzdata \
         default-mysql-client redis-tools \
@@ -49,7 +52,7 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g @anthropic-ai/claude-code @openai/codex \
+    && npm install -g @anthropic-ai/claude-code @openai/codex @fission-ai/openspec \
     && rm -rf /var/lib/apt/lists/*
 
 ENV BUN_INSTALL=/usr/local
