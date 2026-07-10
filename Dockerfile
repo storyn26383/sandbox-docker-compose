@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends \
         git vim sudo openssh-client openssh-server unzip zip \
         gh cloudflared jq ripgrep fzf htop direnv \
+        chromium \
         iputils-ping dnsutils netcat-openbsd \
         locales tzdata \
         default-mysql-client redis-tools \

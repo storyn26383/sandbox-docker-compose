@@ -11,7 +11,9 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 | 類別 | 有咩 |
 |---|---|
 | 🐘 程式語言 | PHP 8.3、Swoole 5.1、Bun、Node.js 22 |
+| 🧩 PHP 擴充 | bcmath、pcntl、decimal |
 | 🤖 CLI | claude-code、codex、openspec、gh、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🌐 瀏覽器 | chromium（headless） |
 | 🔨 Build | composer、git、build-essential |
 | 🗄️ DB client | mysql、redis-cli |
 | 🌐 網絡 | curl、wget、ping、dig、nc |
