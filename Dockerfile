@@ -1,4 +1,4 @@
-FROM phpswoole/swoole:5.1-php8.3
+FROM phpswoole/swoole:6.0-php8.3
 
 ARG UID=1000
 ARG GID=1000
