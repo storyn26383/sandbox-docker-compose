@@ -21,6 +21,8 @@ services:
       CODEX_AUTH_TOKEN: ${CODEX_AUTH_TOKEN}
       CODEX_BASE_URL: ${CODEX_BASE_URL}
       GH_TOKEN: ${GH_TOKEN}
+      GITLAB_URL: ${GITLAB_URL}
+      GITLAB_TOKEN: ${GITLAB_TOKEN}
     ports:
       - "127.0.0.1:${SANDBOX_SSH_PORT:-2222}:22"
     volumes:
