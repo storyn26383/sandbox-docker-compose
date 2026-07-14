@@ -9,6 +9,9 @@ ARG GIT_USER_EMAIL=
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Hong_Kong
 ENV LANG=en_US.UTF-8
+ENV PATH=/usr/local/go/bin:${PATH}
+
+ARG GO_VERSION=1.26.5
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget gnupg \
@@ -58,6 +61,27 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 
 ENV BUN_INSTALL=/usr/local
 RUN curl -fsSL https://bun.sh/install | bash
+
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) \
+            go_archive="go${GO_VERSION}.linux-amd64.tar.gz"; \
+            go_checksum="5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053"; \
+            ;; \
+        arm64) \
+            go_archive="go${GO_VERSION}.linux-arm64.tar.gz"; \
+            go_checksum="fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49"; \
+            ;; \
+        *) \
+            echo "Unsupported Go architecture: $(dpkg --print-architecture)" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    curl --fail --location --show-error --silent "https://go.dev/dl/${go_archive}" --output "/tmp/${go_archive}"; \
+    echo "${go_checksum}  /tmp/${go_archive}" | sha256sum --check; \
+    tar -C /usr/local -xzf "/tmp/${go_archive}"; \
+    rm "/tmp/${go_archive}"; \
+    go version
 
 RUN curl -sS https://getcomposer.org/installer \
     | php -- --install-dir=/usr/local/bin --filename=composer

@@ -54,6 +54,7 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - `git` user.name / user.email come from the host via `git config --get` in the Makefile, are passed to the Dockerfile as build args (`GIT_USER_NAME` / `GIT_USER_EMAIL`), and end up in `/home/sandbox/.gitconfig`. After updating the host config, `make build` syncs.
 - GitHub CLI (`gh`) is installed from GitHub's official apt repository.
 - Bun is installed system-wide (`BUN_INSTALL=/usr/local`), not under `/root/.bun`, so the sandbox user can use it.
+- Go 1.26.5 is installed from the official archive under `/usr/local/go`; the Dockerfile selects amd64 or arm64 and verifies its SHA-256 checksum.
 - Codex CLI is installed with `npm install -g @openai/codex`. The `codex` shell alias intentionally adds `--dangerously-bypass-approvals-and-sandbox` because this dev box is already externally sandboxed by Docker.
 - DB services (`mysql` / `redis` / `clickhouse` / `clickhouse-testing`) are **all unpublished to the host** — internal network only. To reach them from the host, run `make tunnel`. **Don't suggest publishing DB ports directly** — the user already runs their own DBs locally and ports would clash.
 
