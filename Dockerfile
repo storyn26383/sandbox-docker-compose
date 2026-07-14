@@ -56,7 +56,7 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g @anthropic-ai/claude-code @openai/codex @fission-ai/openspec \
+    && npm install -g @anthropic-ai/claude-code @openai/codex @fission-ai/openspec ccusage \
     && rm -rf /var/lib/apt/lists/*
 
 ENV BUN_INSTALL=/usr/local
