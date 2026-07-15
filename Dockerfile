@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         iputils-ping dnsutils netcat-openbsd \
         locales tzdata \
         default-mysql-client redis-tools \
-        libmpdec-dev \
+        libmpdec-dev libjpeg-dev libpng-dev \
     && locale-gen en_US.UTF-8 zh_HK.UTF-8 \
     && mkdir -p /run/sshd \
     && sed -ri \
@@ -86,7 +86,8 @@ RUN set -eux; \
 RUN curl -sS https://getcomposer.org/installer \
     | php -- --install-dir=/usr/local/bin --filename=composer
 
-RUN docker-php-ext-install bcmath pcntl \
+RUN docker-php-ext-configure gd --with-jpeg \
+    && docker-php-ext-install bcmath gd pcntl \
     && pecl install decimal-1.5.0 \
     && docker-php-ext-enable decimal
 
