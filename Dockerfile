@@ -83,6 +83,29 @@ RUN set -eux; \
     rm "/tmp/${go_archive}"; \
     go version
 
+ARG RTK_VERSION=0.43.0
+
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) \
+            rtk_archive="rtk-x86_64-unknown-linux-musl.tar.gz"; \
+            rtk_checksum="ff8a1e7766496e175291a85aeca1dc97c9ff6df33e51e5893d1fbc78fea2a609"; \
+            ;; \
+        arm64) \
+            rtk_archive="rtk-aarch64-unknown-linux-gnu.tar.gz"; \
+            rtk_checksum="5519f7ca12e5c143a609f0d28a0a77b97413a8dce31c2681f1a41c24519a8731"; \
+            ;; \
+        *) \
+            echo "Unsupported rtk architecture: $(dpkg --print-architecture)" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    curl --fail --location --show-error --silent "https://github.com/rtk-ai/rtk/releases/download/v${RTK_VERSION}/${rtk_archive}" --output "/tmp/${rtk_archive}"; \
+    echo "${rtk_checksum}  /tmp/${rtk_archive}" | sha256sum --check; \
+    tar -C /usr/local/bin -xzf "/tmp/${rtk_archive}"; \
+    rm "/tmp/${rtk_archive}"; \
+    rtk --version
+
 RUN curl -sS https://getcomposer.org/installer \
     | php -- --install-dir=/usr/local/bin --filename=composer
 
