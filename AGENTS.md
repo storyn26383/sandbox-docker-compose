@@ -43,20 +43,19 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 
 ## Dev container design principles
 
-- **Mounts `./.data/workspace` to `/home/sandbox/workspace`** as the default workspace (host IDE edits show up immediately in the container under `~/workspace` via SSH or `make shell`). `make init` pre-creates the directory so the Docker daemon doesn't create it as root and break sandbox writes. Add other mounts by editing `docker-compose.yml` directly.
+- **Mounts `./.data/workspace` to `/home/sandbox/workspace`** as the default workspace (host IDE edits show up immediately in the container under `~/workspace` via `make shell`). `make init` pre-creates the directory so the Docker daemon doesn't create it as root and break sandbox writes. Add other mounts by editing `docker-compose.yml` directly.
 - Base image is `phpswoole/swoole:6.2-php8.4` (Debian bookworm); don't suggest switching to Alpine — the alpine variant doesn't ship dev tooling and would need a lot of plumbing.
-- WORKDIR is `/home/sandbox/workspace` (the sandbox user's `~/workspace`), aligned with the host bind-mount target — `make shell` / SSH lands you there naturally.
+- WORKDIR is `/home/sandbox/workspace` (the sandbox user's `~/workspace`), aligned with the host bind-mount target — `make shell` lands you there naturally.
 - Two identities exist inside the container:
-  - **`sandbox`** — Build args `UID` / `GID` track the host (`HOST_UID` / `HOST_GID`, defaults 1000/1000), with NOPASSWD sudo. SSH login, project writes inside the mount, and `make shell` all use `sandbox`.
-  - **`root`** — sshd as PID 1 must run as root (auth, port binding), so the image's `USER` stays root. `docker compose exec workspace bash` defaults to root too; for a sandbox shell, use `-u sandbox` (already wired into `make shell`).
-- The container runs **sshd** (`CMD /usr/sbin/sshd -D -e`); the host maps `127.0.0.1:${SANDBOX_SSH_PORT}:22` to container port 22 so DBs are reachable from the host through SSH tunnels.
-- SSH auth **only accepts pubkey** and **disallows root login** (`PermitRootLogin no` + `PasswordAuthentication no`); the host's `${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}` is mounted as `/home/sandbox/.ssh/authorized_keys`. SSH always logs in as `sandbox` (`make ssh` / `make tunnel` are wired up).
+  - **`sandbox`** — Build args `UID` / `GID` track the host (`HOST_UID` / `HOST_GID`, defaults 1000/1000), with NOPASSWD sudo. Project writes inside the mount and `make shell` both use `sandbox`.
+  - **`root`** — the image has no explicit `USER` directive, so it stays root (base image default). `docker compose exec workspace bash` defaults to root too; for a sandbox shell, use `-u sandbox` (already wired into `make shell`).
+- The container runs no daemon — PID 1 is `CMD ["sleep", "infinity"]` purely to keep it alive (compose sets `tty: true` + `stdin_open: true`). Access is via `make shell` (`docker compose exec`), not SSH.
 - `git` user.name / user.email come from the host via `git config --get` in the Makefile, are passed to the Dockerfile as build args (`GIT_USER_NAME` / `GIT_USER_EMAIL`), and end up in `/home/sandbox/.gitconfig`. After updating the host config, `make build` syncs.
 - GitHub CLI (`gh`) is installed from GitHub's official apt repository.
 - Bun is installed system-wide (`BUN_INSTALL=/usr/local`), not under `/root/.bun`, so the sandbox user can use it.
 - Go 1.26.5 is installed from the official archive under `/usr/local/go`; the Dockerfile selects amd64 or arm64 and verifies its SHA-256 checksum.
 - Codex CLI is installed with `npm install -g @openai/codex`. The `codex` shell alias intentionally adds `--dangerously-bypass-approvals-and-sandbox` because this dev box is already externally sandboxed by Docker.
-- DB services (`mysql` / `redis` / `clickhouse` / `clickhouse-testing`) are **all unpublished to the host** — internal network only. To reach them from the host, run `make tunnel`. **Don't suggest publishing DB ports directly** — the user already runs their own DBs locally and ports would clash.
+- DB services (`mysql` / `redis` / `clickhouse` / `clickhouse-testing`) are **all unpublished to the host** — internal network only, no host path by design. Reach them from inside the container via `make shell`, connecting by service name (`mysql -h mysql`, `redis-cli -h redis`, `curl http://clickhouse:8123`). **Don't suggest publishing DB ports directly** — the user already runs their own DBs locally and ports would clash.
 - **The Dockerfile is organised by scope** — each tool/topic (system packages, sandbox user, Node, Bun, Go, rtk, PHP…) is one section that keeps its own `ARG` / `ENV` / `RUN` together, never scattered across the file. Every section is introduced by a banner divider comment (a `# ===…` line, the section name, then another `# ===…` line). Each `RUN` cleans up after itself where it makes sense (`rm -rf /var/lib/apt/lists/*`, `npm cache clean --force`, delete downloaded archives / `pecl` build leftovers). When adding anything new, put it in the matching section and follow the same pattern.
 
 ## `.env` / environment variables
@@ -66,7 +65,6 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` are forwarded from `.env` into the workspace container's `environment:` block in `docker-compose.yml` for claude-code. **Don't suggest using OAuth flow** — this is intentionally designed around token + proxy URL, login isn't needed.
 - `GH_TOKEN` is forwarded from `.env` into the workspace container for GitHub CLI. Prefer this non-interactive token path over `gh auth login`.
 - Codex uses ChatGPT login, not API key env vars in this repo. `make init` creates `.data/codex/config.toml` with `cli_auth_credentials_store = "file"` so auth is cached in the mounted `CODEX_HOME`; use `codex login --device-auth` from inside the workspace container for first-time login.
-- `SANDBOX_SSH_PORT` (host SSH port, default `2222`) and `SSH_PUBKEY` (source for `authorized_keys`, default `${HOME}/.ssh/id_ed25519.pub`) are resolved through compose's `${VAR:-default}` syntax.
 - `HOST_UID` / `HOST_GID` are auto-injected by the Makefile via `id -u` / `id -g` and exported; they're not stored in `.env` and don't need to be set manually. **Only build / start through the Makefile** — calling `docker compose build` directly falls back to compose's default `1000/1000` and breaks ownership.
 
 ## Before committing
@@ -74,7 +72,7 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 Before each commit, check whether `README.md` needs to follow. If the change touches:
 
 - Structural descriptions (`Workspace` section, `結構` section, mount tables)
-- Onboarding workflow (`make` commands, `.env` variables, SSH / tunnel usage)
+- Onboarding workflow (`make` commands, `.env` variables, shell / DB access)
 - Caveats worth remembering (`提一提` section)
 
 update `README.md` together in the same commit. If the change is unrelated to the README, just commit.

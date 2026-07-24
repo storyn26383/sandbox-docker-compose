@@ -27,7 +27,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 | `clickhouse` | `clickhouse/clickhouse-server:23.3` | 8123 / 9000 |
 | `clickhouse-testing` | `clickhouse/clickhouse-server:23.3` | 8123 / 9000 |
 
-由於 host 上面已經有自己嘅 MySQL / Redis / ClickHouse 喺度跑，sandbox 嘅 DB **全部唔 publish 到 host**，避免 port 撞。要由 host 連入嚟就行 SSH tunnel（下面 [SSH Tunnel 連 DB](#ssh-tunnel-連-db-) section 講）。
+由於 host 上面已經有自己嘅 MySQL / Redis / ClickHouse 喺度跑，sandbox 嘅 DB **全部唔 publish 到 host**，避免 port 撞。要連 DB 就 `make shell` 入 container 用 service name（下面 [連 DB](#連-db-) section 講）。
 
 容器之間照常用 service name 通到，例如喺 workspace 容器內 `mysql -h mysql`、`redis-cli -h redis`、`curl http://clickhouse:8123`。
 
@@ -62,8 +62,6 @@ make start      # 起所有 service
 make stop       # 全部停
 make restart    # 重啟
 make shell      # docker exec 入 workspace container（pwd ~/workspace）
-make ssh        # 透過 sshd 入 workspace container
-make tunnel     # 開 SSH tunnel forward 所有 DB 到 localhost
 make logs       # tail 晒所有 log
 make reset      # 一鍵清晒（連 ClickHouse data 都冚）
 ```
@@ -76,7 +74,7 @@ make reset      # 一鍵清晒（連 ClickHouse data 都冚）
 |---|---|
 | `./workspace/` | `/home/sandbox/workspace`（即 `~/workspace`） |
 
-`make init` 會幫你預先 `mkdir` 好個目錄。Host 上面用任何 IDE 直接 edit `./workspace/...`，容器內即時見到（`make ssh` 入去就喺 `~/workspace`）。`./workspace/` 已經 `.gitignore`，唔會污染 repo。
+`make init` 會幫你預先 `mkdir` 好個目錄。Host 上面用任何 IDE 直接 edit `./workspace/...`，容器內即時見到（`make shell` 入去就喺 `~/workspace`）。`./workspace/` 已經 `.gitignore`，唔會污染 repo。
 
 因為 sandbox 用戶 UID/GID 跟住 host 一樣，permission 自動匹配，host 同容器寫嘅檔案兩邊都當係你本機 user 擁有。`git` 嘅 user.name / user.email 喺 `make build` 嗰陣由 Makefile 從 host `git config` 攞返，build 入 image，commit 即用即得。
 
@@ -128,48 +126,9 @@ codex login --device-auth
 
 兩條路都已經預設加 `--dangerously-bypass-approvals-and-sandbox`。呢個 sandbox 本身已經喺 Docker container 入面，日常用法會接近 `claude` 嗰種免確認流程。
 
-## SSH Tunnel 連 DB 🔌
+## 連 DB 🔌
 
-Dev container 入面跑住 sshd，host 嘅 `127.0.0.1:2222` 對住容器嘅 `22`。SSH 認證用你 host 嘅 `~/.ssh/id_ed25519.pub`（mount 入容器做 `/home/sandbox/.ssh/authorized_keys`），login 帳戶係 `sandbox`（root login disabled），唔使輸密碼。`sandbox` 用戶嘅 UID/GID 跟你 host 一樣，喺 mount 入嚟嘅 project 度寫嘅檔案會係你本機 user 擁有。
-
-**一鍵起晒 tunnel**（背景跑）
-
-```bash
-make tunnel &
-```
-
-呢個會 forward 哂下面嘅 port：
-
-| Local port | 對應容器 |
-|---|---|
-| 13306 | `mysql:3306` |
-| 16379 | `redis:6379` |
-| 18123 | `clickhouse:8123` |
-| 19000 | `clickhouse:9000` |
-| 28123 | `clickhouse-testing:8123` |
-| 29000 | `clickhouse-testing:9000` |
-
-之後 host 上面照常連：
-
-```bash
-mysql -h 127.0.0.1 -P 13306 -uroot -proot
-redis-cli -h 127.0.0.1 -p 16379
-curl 'http://127.0.0.1:18123/?query=SELECT+1'
-```
-
-**SSH 直入 workspace container**（行任何指令都得）
-
-```bash
-make ssh
-# 或者
-ssh -p 2222 sandbox@localhost
-```
-
-**改 SSH port**
-
-`.env` 入面改 `SANDBOX_SSH_PORT=...`，`make restart` 之後新 port 即時生效。
-
-**唔想用 SSH，淨係喺 workspace container 入面做嘢**
+Sandbox 嘅 DB 全部唔 publish 到 host，host 冇直接連入嚟嘅路徑（設計如此，避免同你本機 DB port 撞）。要連 DB 就 `make shell` 入 workspace container，用 service name 連：
 
 ```bash
 make shell

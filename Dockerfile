@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8
 
 # ==============================================================================
-# System packages, locale, and sshd
+# System packages and locale
 # ==============================================================================
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget gnupg \
@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared bookworm main" > /etc/apt/sources.list.d/cloudflared.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        git vim sudo openssh-client openssh-server unzip zip \
+        git vim sudo unzip zip \
         gh cloudflared jq ripgrep fzf htop direnv \
         chromium \
         iputils-ping dnsutils netcat-openbsd \
@@ -29,12 +29,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         default-mysql-client redis-tools \
         libmpdec-dev libjpeg-dev libpng-dev libicu-dev \
     && locale-gen en_US.UTF-8 zh_HK.UTF-8 \
-    && mkdir -p /run/sshd \
-    && sed -ri \
-        -e 's/^#?PermitRootLogin.*/PermitRootLogin no/' \
-        -e 's/^#?PasswordAuthentication.*/PasswordAuthentication no/' \
-        -e 's/^#?PubkeyAuthentication.*/PubkeyAuthentication yes/' \
-        /etc/ssh/sshd_config \
     && rm -rf /var/lib/apt/lists/*
 
 # ==============================================================================
@@ -49,9 +43,6 @@ ARG GIT_USER_EMAIL=
 RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USERNAME} \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
-    && mkdir -p /home/${USERNAME}/.ssh \
-    && chown ${UID}:${GID} /home/${USERNAME}/.ssh \
-    && chmod 700 /home/${USERNAME}/.ssh \
     && echo "alias claude='claude --allow-dangerously-skip-permissions'" >> /home/${USERNAME}/.bashrc \
     && echo 'codex() { if [ -n "$CODEX_AUTH_TOKEN" ] && [ -n "$CODEX_BASE_URL" ]; then command codex --dangerously-bypass-approvals-and-sandbox -c "model_provider=\"proxy\"" -c "model_providers.proxy.name=\"Sandbox proxy\"" -c "model_providers.proxy.base_url=\"$CODEX_BASE_URL\"" -c "model_providers.proxy.env_key=\"CODEX_AUTH_TOKEN\"" -c "model_providers.proxy.wire_api=\"responses\"" -c "model_providers.proxy.requires_openai_auth=false" "$@"; else command codex --dangerously-bypass-approvals-and-sandbox "$@"; fi; }' >> /home/${USERNAME}/.bashrc \
     && echo 'eval "$(direnv hook bash)"' >> /home/${USERNAME}/.bashrc \
@@ -142,5 +133,4 @@ RUN docker-php-ext-configure gd --with-jpeg \
     && rm -rf /tmp/pear
 
 WORKDIR /home/sandbox/workspace
-EXPOSE 22
-CMD ["/usr/sbin/sshd", "-D", "-e"]
+CMD ["sleep", "infinity"]
