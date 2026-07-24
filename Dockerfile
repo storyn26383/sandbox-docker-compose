@@ -1,4 +1,4 @@
-FROM phpswoole/swoole:6.0-php8.3
+FROM phpswoole/swoole:6.2-php8.4
 
 ARG UID=1000
 ARG GID=1000
@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         iputils-ping dnsutils netcat-openbsd \
         locales tzdata \
         default-mysql-client redis-tools \
-        libmpdec-dev libjpeg-dev libpng-dev \
+        libmpdec-dev libjpeg-dev libpng-dev libicu-dev \
     && locale-gen en_US.UTF-8 zh_HK.UTF-8 \
     && mkdir -p /run/sshd \
     && sed -ri \
@@ -110,9 +110,11 @@ RUN curl -sS https://getcomposer.org/installer \
     | php -- --install-dir=/usr/local/bin --filename=composer
 
 RUN docker-php-ext-configure gd --with-jpeg \
-    && docker-php-ext-install bcmath gd pcntl \
-    && pecl install decimal-1.5.0 \
+    && docker-php-ext-install bcmath gd intl pcntl \
+    && pecl install decimal-2.0.1 \
     && docker-php-ext-enable decimal
+
+RUN echo 'swoole.use_shortname=Off' > "${PHP_INI_DIR}/conf.d/zz-swoole.ini"
 
 WORKDIR /home/sandbox/workspace
 EXPOSE 22

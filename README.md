@@ -6,12 +6,12 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 
 ## 入面有咩 📦
 
-**Dev container**（base：[`phpswoole/swoole:6.0-php8.3`](https://hub.docker.com/r/phpswoole/swoole)）
+**Dev container**（base：[`phpswoole/swoole:6.2-php8.4`](https://hub.docker.com/r/phpswoole/swoole)）
 
 | 類別 | 有咩 |
 |---|---|
-| 🐘 程式語言 | PHP 8.3、Swoole 6.0、Go 1.26.5、Bun、Node.js 22 |
-| 🧩 PHP 擴充 | bcmath、gd、pcntl、decimal |
+| 🐘 程式語言 | PHP 8.4、Swoole 6.2、Go 1.26.5、Bun、Node.js 22 |
+| 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、decimal |
 | 🤖 CLI | claude-code、codex、openspec、ccusage、rtk、gh、cloudflared、jq、ripgrep、fzf、htop、direnv |
 | 🌐 瀏覽器 | chromium（headless） |
 | 🔨 Build | composer、git、build-essential |
