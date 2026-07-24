@@ -1,18 +1,15 @@
 FROM phpswoole/swoole:6.2-php8.4
 
-ARG UID=1000
-ARG GID=1000
-ARG USERNAME=sandbox
-ARG GIT_USER_NAME=
-ARG GIT_USER_EMAIL=
+# ==============================================================================
+# Base build environment
+# ==============================================================================
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Asia/Hong_Kong \
+    LANG=en_US.UTF-8
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Asia/Hong_Kong
-ENV LANG=en_US.UTF-8
-ENV PATH=/usr/local/go/bin:${PATH}
-
-ARG GO_VERSION=1.26.5
-
+# ==============================================================================
+# System packages, locale, and sshd
+# ==============================================================================
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget gnupg \
     && mkdir -p -m 755 /etc/apt/keyrings \
@@ -40,6 +37,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         /etc/ssh/sshd_config \
     && rm -rf /var/lib/apt/lists/*
 
+# ==============================================================================
+# Sandbox user
+# ==============================================================================
+ARG UID=1000
+ARG GID=1000
+ARG USERNAME=sandbox
+ARG GIT_USER_NAME=
+ARG GIT_USER_EMAIL=
+
 RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USERNAME} \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
@@ -54,13 +60,26 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && printf '[client]\nssl=0\n' > /home/${USERNAME}/.my.cnf \
     && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.gitconfig /home/${USERNAME}/.gitignore_global /home/${USERNAME}/.my.cnf
 
+# ==============================================================================
+# Node.js and global CLI tools
+# ==============================================================================
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && npm install -g @anthropic-ai/claude-code @openai/codex @fission-ai/openspec ccusage \
+    && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
 
+# ==============================================================================
+# Bun
+# ==============================================================================
 ENV BUN_INSTALL=/usr/local
 RUN curl -fsSL https://bun.sh/install | bash
+
+# ==============================================================================
+# Go
+# ==============================================================================
+ARG GO_VERSION=1.26.5
+ENV PATH=/usr/local/go/bin:${PATH}
 
 RUN set -eux; \
     case "$(dpkg --print-architecture)" in \
@@ -83,6 +102,9 @@ RUN set -eux; \
     rm "/tmp/${go_archive}"; \
     go version
 
+# ==============================================================================
+# rtk (Rust Token Killer)
+# ==============================================================================
 ARG RTK_VERSION=0.43.0
 
 RUN set -eux; \
@@ -106,15 +128,18 @@ RUN set -eux; \
     rm "/tmp/${rtk_archive}"; \
     rtk --version
 
+# ==============================================================================
+# PHP: Composer, extensions, and Swoole config
+# ==============================================================================
 RUN curl -sS https://getcomposer.org/installer \
     | php -- --install-dir=/usr/local/bin --filename=composer
 
 RUN docker-php-ext-configure gd --with-jpeg \
     && docker-php-ext-install bcmath gd intl pcntl \
     && pecl install decimal-2.0.1 \
-    && docker-php-ext-enable decimal
-
-RUN echo 'swoole.use_shortname=Off' > "${PHP_INI_DIR}/conf.d/zz-swoole.ini"
+    && docker-php-ext-enable decimal \
+    && echo 'swoole.use_shortname=Off' > "${PHP_INI_DIR}/conf.d/zz-swoole.ini" \
+    && rm -rf /tmp/pear
 
 WORKDIR /home/sandbox/workspace
 EXPOSE 22
