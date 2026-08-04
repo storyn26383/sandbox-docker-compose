@@ -24,7 +24,7 @@ init: .env build .data/claude.json .data/codex/config.toml
 	echo 'cli_auth_credentials_store = "file"' > .data/codex/config.toml
 
 build:
-	docker compose build
+	docker compose build $(filter-out build,$(MAKECMDGOALS))
 
 start:
 	docker compose up -d
@@ -43,3 +43,7 @@ logs:
 reset:
 	docker compose down
 	rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis
+
+# Swallow extra goals so flags like `make build -- --no-cache` forward to the recipe
+%:
+	@:
