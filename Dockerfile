@@ -1,4 +1,4 @@
-FROM phpswoole/swoole:6.2-php8.4
+FROM phpswoole/swoole:6.2-php8.5
 
 # ==============================================================================
 # Base build environment
