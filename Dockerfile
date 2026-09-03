@@ -137,6 +137,31 @@ RUN set -eux; \
     rtk --version
 
 # ==============================================================================
+# glab (GitLab CLI)
+# ==============================================================================
+ARG GLAB_VERSION=1.116.0
+
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) \
+            glab_checksum="173cc61ea94c562f2ccd831f320d25b73982192e82810064552282482e3713ea"; \
+            ;; \
+        arm64) \
+            glab_checksum="3e59a0c5db5b281c552543cc1018873ecdd551b07737cfdb932c6543aa39d88c"; \
+            ;; \
+        *) \
+            echo "Unsupported glab architecture: $(dpkg --print-architecture)" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    glab_archive="glab_${GLAB_VERSION}_linux_$(dpkg --print-architecture).tar.gz"; \
+    curl --fail --location --show-error --silent "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/${GLAB_VERSION}/${glab_archive}" --output "/tmp/${glab_archive}"; \
+    echo "${glab_checksum}  /tmp/${glab_archive}" | sha256sum --check; \
+    tar -C /usr/local -xzf "/tmp/${glab_archive}" bin/glab; \
+    rm "/tmp/${glab_archive}"; \
+    glab --version
+
+# ==============================================================================
 # PHP: Composer, extensions, and Swoole config
 # ==============================================================================
 RUN curl -sS https://getcomposer.org/installer \

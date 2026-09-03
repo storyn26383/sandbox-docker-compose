@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | claude-code、codex、openspec、ccusage、ntn（Notion，read-only）、rtk、gh、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | claude-code、codex、openspec、ccusage、ntn（Notion，read-only）、rtk、gh、glab、cloudflared、jq、ripgrep、fzf、htop、direnv |
 | 🌐 瀏覽器 | chromium（headless） |
 | 🔨 Build | composer、git、build-essential |
 | 🗄️ DB client | mysql、redis-cli |
@@ -98,6 +98,17 @@ GH_TOKEN=你個 GitHub token
 ```
 
 `make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，`gh` 會直接讀呢個 token，唔使再行 `gh auth login`。
+
+## GitLab CLI 嘅認證 🔐
+
+`glab` 用 `GITLAB_TOKEN`。自架 / GitLab Dedicated 就再加 `GITLAB_HOST` 指住個 instance，唔寫預設行 `https://gitlab.com`。喺 `.env` 寫入：
+
+```env
+GITLAB_HOST=https://gitlab.example.com
+GITLAB_TOKEN=你個 GitLab token
+```
+
+`make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，唔使再行 `glab auth login`。
 
 ## Notion CLI 嘅認證 🔐
 
