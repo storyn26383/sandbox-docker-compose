@@ -28,7 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         locales tzdata \
         default-mysql-client redis-tools \
         libmpdec-dev libjpeg-dev libpng-dev libicu-dev libzip-dev \
-    && locale-gen en_US.UTF-8 zh_HK.UTF-8 \
+    && sed -i 's/^# *\(en_US.UTF-8\|zh_HK.UTF-8\)/\1/' /etc/locale.gen \
+    && locale-gen \
     && rm -rf /var/lib/apt/lists/*
 
 # ==============================================================================
