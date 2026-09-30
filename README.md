@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | claude-code、codex、openspec、ccusage、ntn（Notion，read-only）、rtk、gh、glab、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | claude-code、codex、openspec、ccusage、ntn（Notion，read-only）、rtk、gh、glab、sentry-cli、cloudflared、jq、ripgrep、fzf、htop、direnv |
 | 🌐 瀏覽器 | chromium（headless） |
 | 🔨 Build | composer、git、build-essential |
 | 🗄️ DB client | mysql、redis-cli |
@@ -110,6 +110,18 @@ GITLAB_TOKEN=你個 GitLab token
 
 `make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，唔使再行 `glab auth login`。
 
+## Sentry CLI 嘅認證 🔐
+
+`sentry-cli` 用 `SENTRY_AUTH_TOKEN`。喺 `.env` 寫入：
+
+```env
+SENTRY_AUTH_TOKEN=你個 Sentry token
+```
+
+`make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，唔使再行 `sentry-cli login`。
+
+⚠️ `sentry-cli` 預設會 load 當前目錄嘅 `.env`，喺 project 入面行嘅話可能被 project 自己嘅 `SENTRY_*` 蓋過，用 `sentry-cli info` 睇實際讀咗乜。
+
 ## Notion CLI 嘅認證 🔐
 
 Notion 官方 CLI 叫 `ntn`（唔係 `notion`）。喺 `.env` 寫入：
@@ -173,7 +185,7 @@ curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
 sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
-├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / Codex / gh / Notion token
+├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / Codex / gh / glab / Sentry / Notion token
 ├── Makefile                    # 全部 make 指令
 ├── Dockerfile                  # workspace 容器點 build
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）

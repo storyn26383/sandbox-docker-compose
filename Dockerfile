@@ -163,6 +163,31 @@ RUN set -eux; \
     glab --version
 
 # ==============================================================================
+# sentry-cli
+# ==============================================================================
+ARG SENTRY_CLI_VERSION=3.8.0
+
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) \
+            sentry_cli_binary="sentry-cli-Linux-x86_64"; \
+            sentry_cli_checksum="13f8cb34ae01a6a272d7d7c22e277a105286615b4020de900ea95a8de47cdbb6"; \
+            ;; \
+        arm64) \
+            sentry_cli_binary="sentry-cli-Linux-aarch64"; \
+            sentry_cli_checksum="eaea24b5b47b61a96d9a2e353268ea41fd9a8c5b7979694330df614d4af672bf"; \
+            ;; \
+        *) \
+            echo "Unsupported sentry-cli architecture: $(dpkg --print-architecture)" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    curl --fail --location --show-error --silent "https://github.com/getsentry/sentry-cli/releases/download/${SENTRY_CLI_VERSION}/${sentry_cli_binary}" --output /usr/local/bin/sentry-cli; \
+    echo "${sentry_cli_checksum}  /usr/local/bin/sentry-cli" | sha256sum --check; \
+    chmod +x /usr/local/bin/sentry-cli; \
+    sentry-cli --version
+
+# ==============================================================================
 # PHP: Composer, extensions, and Swoole config
 # ==============================================================================
 RUN curl -sS https://getcomposer.org/installer \

@@ -23,6 +23,7 @@ services:
       GH_TOKEN: ${GH_TOKEN}
       GITLAB_HOST: ${GITLAB_HOST}
       GITLAB_TOKEN: ${GITLAB_TOKEN}
+      SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN}
       NOTION_API_TOKEN: ${NOTION_API_TOKEN}
     volumes:
       - ./claude:/home/sandbox/.claude
