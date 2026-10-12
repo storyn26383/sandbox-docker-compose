@@ -26,6 +26,8 @@ services:
       SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN}
       SLACK_USER_TOKEN: ${SLACK_USER_TOKEN}
       NOTION_API_TOKEN: ${NOTION_API_TOKEN}
+      CLICKUP_TOKEN: ${CLICKUP_TOKEN}
+      CLICKUP_WORKSPACE: ${CLICKUP_WORKSPACE}
     volumes:
       - ./claude:/home/sandbox/.claude
       - ./.data/claude.json:/home/sandbox/.claude.json
