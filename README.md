@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | claude-code、codex、openspec、ccusage、ntn（Notion，read-only）、rtk、gh、glab、sentry-cli、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | claude-code、codex、openspec、ccusage、ntn（Notion，read-only）、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
 | 🌐 瀏覽器 | chromium（headless） |
 | 🔨 Build | composer、git、build-essential |
 | 🗄️ DB client | mysql、redis-cli |
@@ -166,6 +166,20 @@ codex login --device-auth
 
 兩條路都已經預設加 `--dangerously-bypass-approvals-and-sandbox`。呢個 sandbox 本身已經喺 Docker container 入面，日常用法會接近 `claude` 嗰種免確認流程。
 
+## Slack CLI 嘅認證 🔐
+
+唔行 `slack login`（嗰個 token 冇得收窄 scope，可以 deploy / delete app），淨係用 `slack api` 配一個自己開、得 read scope 嘅 user token。喺 `.env` 寫入：
+
+```env
+SLACK_USER_TOKEN=xoxp-你個 Slack user token
+```
+
+`make start` 之後自動 forward 入 workspace container，`slack api conversations.history channel=C0123456` 之類直接用得。
+
+**點開 read-only token 🔒** — 去 https://api.slack.com/apps 開個 app，**User Token Scopes 淨係加 read 嘢**（`channels:read`、`channels:history`、`groups:read`、`groups:history`、`im:read`、`im:history`、`mpim:read`、`mpim:history`、`users:read`、`search:read`），千祈唔好加 `chat:write` 呢類 write scope。Install 落 workspace 之後攞 `xoxp-` 開頭嗰條 token。呢層係 Slack server-side 硬擋，call write method 一律回 `missing_scope`。
+
+⚠️ `slack api` 揀 token 嘅次序係 `--token` → `--app` → `SLACK_BOT_TOKEN` → `SLACK_USER_TOKEN`，即係如果有 `SLACK_BOT_TOKEN`，會蓋過呢條 read-only token。
+
 ## 連 DB 🔌
 
 Sandbox 嘅 DB 全部唔 publish 到 host，host 冇直接連入嚟嘅路徑（設計如此，避免同你本機 DB port 撞）。要連 DB 就 `make shell` 入 workspace container，用 service name 連：
@@ -185,7 +199,7 @@ curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
 sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
-├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / Codex / gh / glab / Sentry / Notion token
+├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / Codex / gh / glab / Sentry / Slack / Notion token
 ├── Makefile                    # 全部 make 指令
 ├── Dockerfile                  # workspace 容器點 build
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）

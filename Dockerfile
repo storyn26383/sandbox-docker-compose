@@ -188,6 +188,31 @@ RUN set -eux; \
     sentry-cli --version
 
 # ==============================================================================
+# Slack CLI
+# ==============================================================================
+ARG SLACK_CLI_VERSION=4.9.0
+
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) \
+            slack_cli_checksum="6fb005b3d49f02eacd281adcfccb446648dc784171d0e2b8e80bb648673d696a"; \
+            ;; \
+        arm64) \
+            slack_cli_checksum="e63e11a60b563d0eb1e1505be1a97c1e4bf0e684fdf549d69c0619b770553344"; \
+            ;; \
+        *) \
+            echo "Unsupported Slack CLI architecture: $(dpkg --print-architecture)" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    slack_cli_archive="slack_cli_${SLACK_CLI_VERSION}_linux_$(dpkg --print-architecture).tar.gz"; \
+    curl --fail --location --show-error --silent "https://downloads.slack-edge.com/slack-cli/${slack_cli_archive}" --output "/tmp/${slack_cli_archive}"; \
+    echo "${slack_cli_checksum}  /tmp/${slack_cli_archive}" | sha256sum --check; \
+    tar -C /usr/local -xzf "/tmp/${slack_cli_archive}" bin/slack; \
+    rm "/tmp/${slack_cli_archive}"; \
+    slack version
+
+# ==============================================================================
 # PHP: Composer, extensions, and Swoole config
 # ==============================================================================
 RUN curl -sS https://getcomposer.org/installer \
