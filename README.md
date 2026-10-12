@@ -120,7 +120,7 @@ SENTRY_AUTH_TOKEN=你個 Sentry token
 
 `make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，唔使再行 `sentry-cli login`。
 
-⚠️ `sentry-cli` 預設會 load 當前目錄嘅 `.env`，喺 project 入面行嘅話可能被 project 自己嘅 `SENTRY_*` 蓋過，用 `sentry-cli info` 睇實際讀咗乜。
+⚠️ `sentry-cli` 預設會 load 當前目錄（同上層）嘅 `.env`，但唔會蓋過已經 export 咗嘅 env，所以 `SENTRY_AUTH_TOKEN` 唔會被 project 換走；不過冇 set 嘅 `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_URL` 就會由 project 嘅 `.env` 補上，喺唔同 project 行 org / project 可能自動變咗。用 `sentry-cli info` 睇實際讀咗乜。
 
 ## Notion CLI 嘅認證 🔐
 
