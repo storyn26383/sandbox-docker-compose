@@ -132,12 +132,9 @@ NOTION_API_TOKEN=你個 Notion PAT
 
 `make start` 之後自動 forward 入 workspace container，`ntn` 直接讀，唔使行 `ntn login`（container 冇 keychain，行 login flow 好煩）。
 
-**呢個 sandbox 入面 `ntn` 係 read-only 嘅，兩層防護：**
+**PAT 冇得 read-only ⚠️** — PAT 開嘅時候只有「Notion API」同「Workers」兩個 capability 揀，讀寫綁埋一齊，所以做唔到 read-only。（Internal connection 就可以淨係剔 Read content，但要 Workspace Owner 先開到，仲要逐個 page share，所以呢度唔用。）
 
-1. **PAT capabilities（真正防線 🔒）** — 去 https://app.notion.com/developers/connections 開 PAT 嗰陣，capabilities **淨係剔 `Read content`**（想睇 comment 就加埋 `Read comments`），千祈唔好剔 `Update content` / `Insert content`。呢層係 Notion server-side 硬擋，client 點改都繞唔到。
-2. **Shell function（防手誤 ⚠️）** — container 內 `ntn` 被 `.bashrc` 一個 function 包住，只放行 read 命令（`api` GET、`pages get`、`datasources query/resolve`、`files get/list`、`doctor`），見到 `-X`、`--data` 或者任何 `key=value` inline body field 就即刻擋。**呢層淨係防手誤**，`command ntn` 一句就繞得過，所以第 1 點先係重點。
-
-仲有，Notion 側要手動 share 目標 page / database 畀個 integration，唔 share 嘅嘢 API 一律報錯（就算 token 啱都睇唔到）。
+**所以 container 內 `ntn` 被 `.bashrc` 一個 function 包住**，只放行 read subcommand（`pages get`、`datasources query/resolve`、`files get/list`、`doctor`），見到 `-X`、`--data` 或者任何 `key=value` inline body field 就即刻擋。`ntn api` 唔放行，因為 stdin JSON、`-d`、`--method POST` 都繞得過 guard。**呢層淨係防手誤**，`command ntn` 或者直接 `curl` 一樣繞得過；約束 Claude 嘅係全局 CLAUDE.md 嘅規則。
 
 ## Codex CLI 嘅認證 🔐
 

@@ -48,10 +48,10 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && echo 'codex() { if [ -n "$CODEX_AUTH_TOKEN" ] && [ -n "$CODEX_BASE_URL" ]; then command codex --dangerously-bypass-approvals-and-sandbox -c "model_provider=\"proxy\"" -c "model_providers.proxy.name=\"Sandbox proxy\"" -c "model_providers.proxy.base_url=\"$CODEX_BASE_URL\"" -c "model_providers.proxy.env_key=\"CODEX_AUTH_TOKEN\"" -c "model_providers.proxy.wire_api=\"responses\"" -c "model_providers.proxy.requires_openai_auth=false" "$@"; else command codex --dangerously-bypass-approvals-and-sandbox "$@"; fi; }' >> /home/${USERNAME}/.bashrc \
     && printf '%s\n' \
         '# ponytail: typo guard only, bypassable via `command ntn`.' \
-        '# The real write barrier is the Notion PAT capabilities (grant "Read content" alone).' \
+        '# Notion tokens cannot be scoped read-only; CLAUDE.md is what keeps Claude on this allowlist.' \
         'ntn() {' \
         '    case "$*" in' \
-        '        api|api\ *|pages\ get\ *|datasources\ query\ *|datasources\ resolve\ *|files\ get\ *|files\ list|doctor|--help|-h|--version|-V) ;;' \
+        '        pages\ get\ *|datasources\ query\ *|datasources\ resolve\ *|files\ get\ *|files\ list|doctor|--help|-h|--version|-V) ;;' \
         '        *) echo "ntn: read-only mode, command blocked" >&2; return 1 ;;' \
         '    esac' \
         '    for arg in "$@"; do' \
