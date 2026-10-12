@@ -46,36 +46,6 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
     && echo "alias claude='claude --allow-dangerously-skip-permissions'" >> /home/${USERNAME}/.bashrc \
     && echo 'codex() { if [ -n "$CODEX_AUTH_TOKEN" ] && [ -n "$CODEX_BASE_URL" ]; then command codex --dangerously-bypass-approvals-and-sandbox -c "model_provider=\"proxy\"" -c "model_providers.proxy.name=\"Sandbox proxy\"" -c "model_providers.proxy.base_url=\"$CODEX_BASE_URL\"" -c "model_providers.proxy.env_key=\"CODEX_AUTH_TOKEN\"" -c "model_providers.proxy.wire_api=\"responses\"" -c "model_providers.proxy.requires_openai_auth=false" "$@"; else command codex --dangerously-bypass-approvals-and-sandbox "$@"; fi; }' >> /home/${USERNAME}/.bashrc \
-    && printf '%s\n' \
-        '# ponytail: typo guard only, bypassable via `command ntn`.' \
-        '# Notion tokens cannot be scoped read-only; CLAUDE.md is what keeps Claude on this allowlist.' \
-        'ntn() {' \
-        '    case "$*" in' \
-        '        pages\ get\ *|datasources\ query\ *|datasources\ resolve\ *|files\ get\ *|files\ list|doctor|--help|-h|--version|-V) ;;' \
-        '        *) echo "ntn: read-only mode, command blocked" >&2; return 1 ;;' \
-        '    esac' \
-        '    for arg in "$@"; do' \
-        '        case "$arg" in' \
-        '            *==*) continue ;;' \
-        '            -X*|--data*|--unsafe-verbose|*=*) echo "ntn: read-only mode, $arg blocked" >&2; return 1 ;;' \
-        '        esac' \
-        '    done' \
-        '    command ntn "$@"' \
-        '}' \
-        '# ponytail: typo guard only, bypassable via `command clickup-cli`.' \
-        '# ClickUp tokens cannot be scoped read-only; CLAUDE.md is what keeps Claude on this allowlist.' \
-        'clickup-cli() {' \
-        '    case "$1" in' \
-        '        ""|--help|-h|--version|-V|status) command clickup-cli "$@"; return ;;' \
-        '    esac' \
-        '    case "$2" in' \
-        '        list|get|search|time-in-status|pages|page|replies|current|history|tasks|tags|seats|plan|query|show|whoami|check|status) ;;' \
-        '        channel-list|channel-get|channel-followers|channel-members|message-list|reply-list|reaction-list|tagged-users) ;;' \
-        '        *) echo "clickup-cli: read-only mode, command blocked" >&2; return 1 ;;' \
-        '    esac' \
-        '    command clickup-cli "$@"' \
-        '}' \
-        >> /home/${USERNAME}/.bashrc \
     && echo 'eval "$(direnv hook bash)"' >> /home/${USERNAME}/.bashrc \
     && printf '[user]\n\tname = %s\n\temail = %s\n[core]\n\texcludesfile = /home/%s/.gitignore_global\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" "${USERNAME}" > /home/${USERNAME}/.gitconfig \
     && printf '.envrc\n' > /home/${USERNAME}/.gitignore_global \

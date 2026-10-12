@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | claude-code、codex、openspec、ccusage、ntn（Notion，read-only）、clickup-cli（read-only）、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | claude-code、codex、openspec、ccusage、ntn（Notion）、clickup-cli、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
 | 🌐 瀏覽器 | chromium（headless） |
 | 🔨 Build | composer、git、build-essential |
 | 🗄️ DB client | mysql、redis-cli |
@@ -132,10 +132,6 @@ NOTION_API_TOKEN=你個 Notion PAT
 
 `make start` 之後自動 forward 入 workspace container，`ntn` 直接讀，唔使行 `ntn login`（container 冇 keychain，行 login flow 好煩）。
 
-**PAT 冇得 read-only ⚠️** — PAT 開嘅時候只有「Notion API」同「Workers」兩個 capability 揀，讀寫綁埋一齊，所以做唔到 read-only。（Internal connection 就可以淨係剔 Read content，但要 Workspace Owner 先開到，仲要逐個 page share，所以呢度唔用。）
-
-**所以 container 內 `ntn` 被 `.bashrc` 一個 function 包住**，只放行 read subcommand（`pages get`、`datasources query/resolve`、`files get/list`、`doctor`），見到 `-X`、`--data` 或者任何 `key=value` inline body field 就即刻擋。`ntn api` 唔放行，因為 stdin JSON、`-d`、`--method POST` 都繞得過 guard。**呢層淨係防手誤**，`command ntn` 或者直接 `curl` 一樣繞得過；約束 Claude 嘅係全局 CLAUDE.md 嘅規則。
-
 ## ClickUp CLI 嘅認證 🔐
 
 用第三方嘅 [`clickup-cli`](https://github.com/nicholasbester/clickup-cli)（ClickUp 冇官方 CLI），由 GitHub release 落載、鎖版本、對 checksum，淨係裝 `clickup-cli`，冇裝 `clkup` 簡寫。喺 `.env` 寫入：
@@ -146,10 +142,6 @@ CLICKUP_WORKSPACE=你個 workspace ID
 ```
 
 `make start` 之後自動 forward 入 workspace container，唔使行 `clickup-cli setup`。
-
-**Token 冇得 read-only ⚠️** — ClickUp 嘅 personal token 同 OAuth 都冇 scope，等於你本人全部權限，仲永遠唔過期。
-
-**所以 container 內 `clickup-cli` 被 `.bashrc` 一個 function 包住**，只放行讀嘢嘅 action（`list`、`get`、`search`、`pages`、`page`、`message-list` 之類），`create` / `update` / `delete` / `setup` / `auth login` / `mcp serve` 一律擋。全局 flag 要寫喺 action 後面（`clickup-cli task list --output json`），寫喺前面會被當成未知命令擋咗。**呢層一樣淨係防手誤**，`command clickup-cli` 或者直接 `curl` 都繞得過；約束 Claude 嘅係全局 CLAUDE.md 嘅規則。
 
 ## Codex CLI 嘅認證 🔐
 
