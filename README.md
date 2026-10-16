@@ -10,11 +10,12 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 
 | 類別 | 有咩 |
 |---|---|
-| 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Bun、Node.js 22 |
+| 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Rust 1.89.0、Flutter 3.44.1、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
 | 🤖 CLI | claude-code、codex、openspec、ccusage、ntn（Notion）、clickup-cli、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🦀 App 開發 | melos、flutter_rust_bridge_codegen、cargo-audit、protoc 26.1 |
 | 🌐 瀏覽器 | chromium（headless） |
-| 🔨 Build | composer、git、build-essential |
+| 🔨 Build | composer、git、build-essential、clang、cmake、ninja、pkg-config |
 | 🗄️ DB client | mysql、redis-cli |
 | 🌐 網絡 | curl、wget、ping、dig、nc |
 
@@ -230,3 +231,4 @@ make reset
 - 要 Docker Compose **v2.20+**（用到 `include:` 指令）。Docker Desktop / OrbStack 2023-10 之後都得。
 - ClickHouse 嘅 XML config（servers / macros / zookeeper / cors / timezone）由 submodule 提供，唔好喺 sandbox 度改；要改就入 `clickhouse/` 嗰個 submodule（remote 係 `storyn26383/golden-clickhouse`）改完 push。
 - Apple Silicon（M 系）行得通，全部 image / install script 都有 arm64 版。
+- Rust / Flutter 裝喺 sandbox user 嘅 home（`~/.cargo`、`~/.rustup`、`~/flutter`），冇裝 fvm。`MELOS_SDK_PATH` 已經指住 `~/flutter`，直接 `melos bootstrap` 就得，唔好喺 container 行 `fvm use`。

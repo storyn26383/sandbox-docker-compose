@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared bookworm main" > /etc/apt/sources.list.d/cloudflared.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        git vim sudo unzip zip \
+        git vim sudo unzip zip xz-utils \
+        clang cmake ninja-build pkg-config \
         gh cloudflared jq ripgrep fzf htop direnv \
         chromium \
         iputils-ping dnsutils netcat-openbsd \
@@ -220,6 +221,85 @@ RUN set -eux; \
     tar -C /usr/local/bin -xzf "/tmp/${clickup_cli_archive}" clickup-cli; \
     rm "/tmp/${clickup_cli_archive}"; \
     clickup-cli --version
+
+# ==============================================================================
+# protoc
+# ==============================================================================
+ARG PROTOC_VERSION=26.1
+
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) \
+            protoc_archive="protoc-${PROTOC_VERSION}-linux-x86_64.zip"; \
+            protoc_checksum="a7be2928c0454f132c599e25b79b7ad1b57663f2337d7f7e468a1d59b98ec1b0"; \
+            ;; \
+        arm64) \
+            protoc_archive="protoc-${PROTOC_VERSION}-linux-aarch_64.zip"; \
+            protoc_checksum="64a3b3b5f7dac0c8f9cf1cb85b2b1a237eb628644f6bcb0fb8f23db6e0d66181"; \
+            ;; \
+        *) \
+            echo "Unsupported protoc architecture: $(dpkg --print-architecture)" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    curl --fail --location --show-error --silent "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${protoc_archive}" --output "/tmp/${protoc_archive}"; \
+    echo "${protoc_checksum}  /tmp/${protoc_archive}" | sha256sum --check; \
+    unzip -q "/tmp/${protoc_archive}" 'bin/protoc' 'include/*' -d /usr/local; \
+    rm "/tmp/${protoc_archive}"; \
+    protoc --version
+
+# ==============================================================================
+# Rust
+# ==============================================================================
+ARG RUST_VERSION=1.89.0
+ARG FLUTTER_RUST_BRIDGE_CODEGEN_VERSION=2.13.0-beta.2
+ARG CARGO_AUDIT_VERSION=0.22.2
+ENV PATH=/home/${USERNAME}/.cargo/bin:${PATH}
+
+USER ${USERNAME}
+
+# Targets mirror openim-app's rust-toolchain.toml; rustup installs any missing ones on first cargo run anyway
+RUN set -eux; \
+    curl --proto '=https' --tlsv1.2 --fail --show-error --silent https://sh.rustup.rs \
+        | sh -s -- -y --no-modify-path --profile minimal --default-toolchain "${RUST_VERSION}" \
+            --component clippy --component rustfmt; \
+    rustup target add \
+        x86_64-unknown-linux-gnu \
+        aarch64-apple-darwin x86_64-apple-darwin \
+        aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios \
+        aarch64-linux-android armv7-linux-androideabi x86_64-linux-android \
+        x86_64-pc-windows-msvc; \
+    rustc --version
+
+RUN set -eux; \
+    cargo install --locked flutter_rust_bridge_codegen --version "${FLUTTER_RUST_BRIDGE_CODEGEN_VERSION}"; \
+    cargo install --locked cargo-audit --version "${CARGO_AUDIT_VERSION}"; \
+    rm -rf "${HOME}/.cargo/registry" "${HOME}/.cargo/git"; \
+    flutter_rust_bridge_codegen --version; \
+    cargo audit --version
+
+USER root
+
+# ==============================================================================
+# Flutter and melos
+# ==============================================================================
+ARG FLUTTER_VERSION=3.44.1
+ARG FLUTTER_HOME=/home/${USERNAME}/flutter
+ARG MELOS_VERSION=7.8.0
+ENV PATH=${FLUTTER_HOME}/bin:/home/${USERNAME}/.pub-cache/bin:${PATH} \
+    MELOS_SDK_PATH=${FLUTTER_HOME}
+
+USER ${USERNAME}
+
+RUN set -eux; \
+    git clone --depth 1 --branch "${FLUTTER_VERSION}" https://github.com/flutter/flutter.git "${FLUTTER_HOME}"; \
+    flutter config --no-analytics; \
+    dart --disable-analytics; \
+    flutter precache --linux --no-android --no-ios --no-web --no-macos --no-windows --no-fuchsia; \
+    dart pub global activate melos "${MELOS_VERSION}"; \
+    melos --version
+
+USER root
 
 # ==============================================================================
 # PHP: Composer, extensions, and Swoole config
