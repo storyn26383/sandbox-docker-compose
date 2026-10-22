@@ -60,9 +60,10 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 
 ## `.env` / environment variables
 
+- The workspace service loads the whole `.env` via `env_file: .env`, so every key reaches the container; adding a token only needs `.env.example` and `.env`, no compose edit.
 - `.env.example` is the single source of truth — when an env key changes, update both `.env.example` and `.env`.
 - Defaults are tuned for casual local use (`root` / `default`); don't suggest making them "production-grade".
-- `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` are forwarded from `.env` into the workspace container's `environment:` block in `docker-compose.yml` for claude-code. **Don't suggest using OAuth flow** — this is intentionally designed around token + proxy URL, login isn't needed.
+- `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` are loaded from `.env` into the workspace container for claude-code. **Don't suggest using OAuth flow** — this is intentionally designed around token + proxy URL, login isn't needed.
 - `GH_TOKEN` is forwarded from `.env` into the workspace container for GitHub CLI. Prefer this non-interactive token path over `gh auth login`.
 - `HOST_UID` / `HOST_GID` are auto-injected by the Makefile via `id -u` / `id -g` and exported; they're not stored in `.env` and don't need to be set manually. **Only build / start through the Makefile** — calling `docker compose build` directly falls back to compose's default `1000/1000` and breaks ownership.
 

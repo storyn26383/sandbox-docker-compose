@@ -15,17 +15,7 @@ services:
     tty: true
     stdin_open: true
     working_dir: /home/sandbox/workspace
-    environment:
-      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN}
-      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL}
-      GH_TOKEN: ${GH_TOKEN}
-      GITLAB_HOST: ${GITLAB_HOST}
-      GITLAB_TOKEN: ${GITLAB_TOKEN}
-      SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN}
-      SLACK_USER_TOKEN: ${SLACK_USER_TOKEN}
-      NOTION_API_TOKEN: ${NOTION_API_TOKEN}
-      CLICKUP_TOKEN: ${CLICKUP_TOKEN}
-      CLICKUP_WORKSPACE: ${CLICKUP_WORKSPACE}
+    env_file: .env
     volumes:
       - ./claude:/home/sandbox/.claude
       - ./.data/claude.json:/home/sandbox/.claude.json
