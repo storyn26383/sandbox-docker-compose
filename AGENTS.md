@@ -23,7 +23,6 @@ This repo has two submodules:
 - To change ClickHouse / Claude settings, `cd <submodule>`, commit and push from there, then come back to the sandbox and update the submodule pointer.
 - `claude/` goes dirty easily — claude-code inside the workspace container writes runtime state (`projects/`, `scheduled_tasks.json`, etc.) into the mount; those are handled by the `claude` submodule's own `.gitignore`. When you see dirty state, distinguish runtime artifacts (ignore) from real config edits (handle them).
 - After mounting, `claude/` is exposed inside the container as `/home/sandbox/.claude`, not `claude` — the mount target name differs from the host path.
-- Codex CLI runtime state is stored under `./.data/codex` and mounted as `/home/sandbox/.codex`; this is local state, not tracked config.
 
 ## Docker access is restricted
 
@@ -56,7 +55,6 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - Go 1.26.5 is installed from the official archive under `/usr/local/go`; the Dockerfile selects amd64 or arm64 and verifies its SHA-256 checksum.
 - protoc is installed from the GitHub release (version pinned, SHA-256 checked) because bookworm's `protobuf-compiler` is too old for openim-app.
 - Rust (rustup) and Flutter are installed as the `sandbox` user under `/home/sandbox` (`~/.rustup`, `~/.cargo`, `~/flutter`, `~/.pub-cache`) because both write into their own install dirs at runtime. Versions and the Rust target list mirror openim-app's `.fvmrc` and `rust-toolchain.toml`; rustup auto-installs any listed target that is missing, so the image pre-installs them all. fvm is intentionally not installed (`fvm use` would rewrite the macOS-side `.fvm` symlink on the shared mount); `MELOS_SDK_PATH` points melos at `~/flutter` instead.
-- Codex CLI is installed with `npm install -g @openai/codex`. The `codex` shell alias intentionally adds `--dangerously-bypass-approvals-and-sandbox` because this dev box is already externally sandboxed by Docker.
 - DB services (`mysql` / `redis` / `clickhouse` / `clickhouse-testing`) are **all unpublished to the host** — internal network only, no host path by design. Reach them from inside the container via `make shell`, connecting by service name (`mysql -h mysql`, `redis-cli -h redis`, `curl http://clickhouse:8123`). **Don't suggest publishing DB ports directly** — the user already runs their own DBs locally and ports would clash.
 - **The Dockerfile is organised by scope** — each tool/topic (system packages, sandbox user, Node, Bun, Go, rtk, PHP…) is one section that keeps its own `ARG` / `ENV` / `RUN` together, never scattered across the file. Every section is introduced by a banner divider comment (a `# ===…` line, the section name, then another `# ===…` line). Each `RUN` cleans up after itself where it makes sense (`rm -rf /var/lib/apt/lists/*`, `npm cache clean --force`, delete downloaded archives / `pecl` build leftovers). When adding anything new, put it in the matching section and follow the same pattern.
 
@@ -66,7 +64,6 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - Defaults are tuned for casual local use (`root` / `default`); don't suggest making them "production-grade".
 - `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` are forwarded from `.env` into the workspace container's `environment:` block in `docker-compose.yml` for claude-code. **Don't suggest using OAuth flow** — this is intentionally designed around token + proxy URL, login isn't needed.
 - `GH_TOKEN` is forwarded from `.env` into the workspace container for GitHub CLI. Prefer this non-interactive token path over `gh auth login`.
-- Codex uses ChatGPT login, not API key env vars in this repo. `make init` creates `.data/codex/config.toml` with `cli_auth_credentials_store = "file"` so auth is cached in the mounted `CODEX_HOME`; use `codex login --device-auth` from inside the workspace container for first-time login.
 - `HOST_UID` / `HOST_GID` are auto-injected by the Makefile via `id -u` / `id -g` and exported; they're not stored in `.env` and don't need to be set manually. **Only build / start through the Makefile** — calling `docker compose build` directly falls back to compose's default `1000/1000` and breaks ownership.
 
 ## Before committing

@@ -8,7 +8,7 @@ HOST_GID := $(shell id -g)
 GIT_USER_NAME := $(shell git config --get user.name)
 GIT_USER_EMAIL := $(shell git config --get user.email)
 
-init: .env build .data/claude.json .data/codex/config.toml
+init: .env build .data/claude.json
 	git submodule update --init --recursive
 	mkdir -p workspace
 
@@ -18,10 +18,6 @@ init: .env build .data/claude.json .data/codex/config.toml
 .data/claude.json:
 	mkdir -p .data
 	echo {} > .data/claude.json
-
-.data/codex/config.toml:
-	mkdir -p .data/codex
-	echo 'cli_auth_credentials_store = "file"' > .data/codex/config.toml
 
 build:
 	docker compose build $(filter-out build,$(MAKECMDGOALS))

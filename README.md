@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Rust 1.89.0、Flutter 3.44.1、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | claude-code、codex、openspec、ccusage、ntn（Notion）、clickup-cli、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | claude-code、openspec、ccusage、ntn（Notion）、clickup-cli、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
 | 🦀 App 開發 | melos、flutter_rust_bridge_codegen、cargo-audit、protoc 26.1 |
 | 🌐 瀏覽器 | chromium（headless） |
 | 🔨 Build | composer、git、build-essential、clang、cmake、ninja、pkg-config |
@@ -144,33 +144,6 @@ CLICKUP_WORKSPACE=你個 workspace ID
 
 `make start` 之後自動 forward 入 workspace container，唔使行 `clickup-cli setup`。
 
-## Codex CLI 嘅認證 🔐
-
-兩條路任揀，全部由 `.env` 控制。
-
-**A. 自訂 proxy（同 claude 一樣，env var 直通）**
-
-```env
-CODEX_AUTH_TOKEN=你個 token
-CODEX_BASE_URL=你個 Responses API endpoint
-```
-
-寫入 `.env`，`make start` 之後 `docker-compose.yml` 自動 forward 入 workspace container。`codex` 已經被一個 shell function 包住：行命令時偵測到兩條 env 都有值，會自動補 `-c model_provider=...`、`base_url`、`wire_api=responses`、`requires_openai_auth=false` 等 inline override，直接指去你嘅 proxy。
-
-⚠️ Codex CLI 由 2026/02 起 drop 咗 chat completions（`wire_api = "chat"`），淨返 OpenAI **Responses API**（`/v1/responses`）一條路。所以 `CODEX_BASE_URL` 指住嘅 endpoint **一定要識講 Responses API**（OpenAI 本家、Azure OpenAI、或者啲走 Responses-native 嘅 proxy）。如果你嘅 gateway 淨係識 chat completions（例如純 Anthropic-style proxy / OpenRouter），就要中間夾一層 translation bridge（[VibeAround](https://github.com/jazzenchen/VibeAround) 之類），或者乾脆 fallback 行 ChatGPT login。
-
-**B. ChatGPT login（fallback，env 留空就行呢條）**
-
-兩條 `CODEX_*` env 任何一條空白，`codex` function 會 fallback 行返原本流程。第一次入 workspace container 後行：
-
-```bash
-codex login --device-auth
-```
-
-跟住用 browser 開佢畀你嘅 link，輸入 device code 完成登入。登入資料會存喺 host 嘅 `.data/codex/`，再 mount 入 container 做 `/home/sandbox/.codex`，所以 rebuild / restart container 之後唔使重新 login。
-
-兩條路都已經預設加 `--dangerously-bypass-approvals-and-sandbox`。呢個 sandbox 本身已經喺 Docker container 入面，日常用法會接近 `claude` 嗰種免確認流程。
-
 ## Slack CLI 嘅認證 🔐
 
 唔行 `slack login`（嗰個 token 冇得收窄 scope，可以 deploy / delete app），淨係用 `slack api` 配一個自己開、得 read scope 嘅 user token。喺 `.env` 寫入：
@@ -204,11 +177,11 @@ curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
 sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
-├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / Codex / gh / glab / Sentry / Slack / Notion / ClickUp token
+├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / gh / glab / Sentry / Slack / Notion / ClickUp token
 ├── Makefile                    # 全部 make 指令
 ├── Dockerfile                  # workspace 容器點 build
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
-├── .data/                      # MySQL / Redis 資料 + Claude Code / Codex 狀態 bind mount 落呢度（gitignore）
+├── .data/                      # MySQL / Redis 資料 + Claude Code 狀態 bind mount 落呢度（gitignore）
 ├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /home/sandbox/.claude
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```

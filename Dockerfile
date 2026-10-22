@@ -46,7 +46,6 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USERNAME} \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
     && echo "alias claude='claude --allow-dangerously-skip-permissions'" >> /home/${USERNAME}/.bashrc \
-    && echo 'codex() { if [ -n "$CODEX_AUTH_TOKEN" ] && [ -n "$CODEX_BASE_URL" ]; then command codex --dangerously-bypass-approvals-and-sandbox -c "model_provider=\"proxy\"" -c "model_providers.proxy.name=\"Sandbox proxy\"" -c "model_providers.proxy.base_url=\"$CODEX_BASE_URL\"" -c "model_providers.proxy.env_key=\"CODEX_AUTH_TOKEN\"" -c "model_providers.proxy.wire_api=\"responses\"" -c "model_providers.proxy.requires_openai_auth=false" "$@"; else command codex --dangerously-bypass-approvals-and-sandbox "$@"; fi; }' >> /home/${USERNAME}/.bashrc \
     && echo 'eval "$(direnv hook bash)"' >> /home/${USERNAME}/.bashrc \
     && printf '[user]\n\tname = %s\n\temail = %s\n[core]\n\texcludesfile = /home/%s/.gitignore_global\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" "${USERNAME}" > /home/${USERNAME}/.gitconfig \
     && printf '.envrc\n' > /home/${USERNAME}/.gitignore_global \
@@ -58,7 +57,7 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
 # ==============================================================================
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g @anthropic-ai/claude-code @openai/codex @fission-ai/openspec ccusage ntn \
+    && npm install -g @anthropic-ai/claude-code @fission-ai/openspec ccusage ntn \
     && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
 
