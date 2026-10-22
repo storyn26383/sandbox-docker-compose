@@ -19,6 +19,7 @@ services:
     volumes:
       - ./claude:/home/sandbox/.claude
       - ./.data/claude.json:/home/sandbox/.claude.json
+      - ./omp:/home/sandbox/.omp
       - ./workspace:/home/sandbox/workspace
     depends_on:
       - mysql

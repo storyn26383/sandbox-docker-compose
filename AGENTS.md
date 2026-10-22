@@ -12,17 +12,19 @@ Same for commit messages, code comments (when actually needed), and anything pus
 
 ## Submodule discipline
 
-This repo has two submodules:
+This repo has three submodules:
 
 | Path | Remote | Purpose |
 |---|---|---|
 | `clickhouse/` | `git@github.com:storyn26383/golden-clickhouse.git` | ClickHouse service and config |
 | `claude/` | `git@github.com:storyn26383/.claude.git` | sasaya's personal Claude settings, mounted into the workspace container as `/home/sandbox/.claude` |
+| `omp/` | `git@github.com:storyn26383/.omp.git` | sasaya's personal omp settings, mounted into the workspace container as `/home/sandbox/.omp` |
 
-- **Don't edit any file inside a submodule from this sandbox** (including ClickHouse XML config and Claude skills/commands/settings).
-- To change ClickHouse / Claude settings, `cd <submodule>`, commit and push from there, then come back to the sandbox and update the submodule pointer.
+- **Don't edit any file inside a submodule from this sandbox** (including ClickHouse XML config, Claude skills/commands/settings, and omp config).
+- To change ClickHouse / Claude / omp settings, `cd <submodule>`, commit and push from there, then come back to the sandbox and update the submodule pointer.
 - `claude/` goes dirty easily — claude-code inside the workspace container writes runtime state (`projects/`, `scheduled_tasks.json`, etc.) into the mount; those are handled by the `claude` submodule's own `.gitignore`. When you see dirty state, distinguish runtime artifacts (ignore) from real config edits (handle them).
-- After mounting, `claude/` is exposed inside the container as `/home/sandbox/.claude`, not `claude` — the mount target name differs from the host path.
+- `omp/` gets runtime state (sessions, logs, auth) written into `agent/` by omp inside the container; its own `agent/.gitignore` whitelists only `config.yml`, `mcp.json`, and `models.yml`.
+- After mounting, `claude/` is exposed inside the container as `/home/sandbox/.claude`, not `claude` (same for `omp/` → `/home/sandbox/.omp`) — the mount target name differs from the host path.
 
 ## Docker access is restricted
 
@@ -51,7 +53,7 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - The container runs no daemon — PID 1 is `CMD ["sleep", "infinity"]` purely to keep it alive (compose sets `tty: true` + `stdin_open: true`). Access is via `make shell` (`docker compose exec`), not SSH.
 - `git` user.name / user.email come from the host via `git config --get` in the Makefile, are passed to the Dockerfile as build args (`GIT_USER_NAME` / `GIT_USER_EMAIL`), and end up in `/home/sandbox/.gitconfig`. After updating the host config, `make build` syncs.
 - GitHub CLI (`gh`) is installed from GitHub's official apt repository.
-- Bun is installed system-wide (`BUN_INSTALL=/usr/local`), not under `/root/.bun`, so the sandbox user can use it.
+- Bun is installed system-wide (`BUN_INSTALL=/usr/local`), not under `/root/.bun`, so the sandbox user can use it. omp is installed with `bun install -g @oh-my-pi/pi-coding-agent` in the same section (package manager over the `omp.sh/install` script).
 - Go 1.26.5 is installed from the official archive under `/usr/local/go`; the Dockerfile selects amd64 or arm64 and verifies its SHA-256 checksum.
 - protoc is installed from the GitHub release (version pinned, SHA-256 checked) because bookworm's `protobuf-compiler` is too old for openim-app.
 - Rust (rustup) and Flutter are installed as the `sandbox` user under `/home/sandbox` (`~/.rustup`, `~/.cargo`, `~/flutter`, `~/.pub-cache`) because both write into their own install dirs at runtime. Versions and the Rust target list mirror openim-app's `.fvmrc` and `rust-toolchain.toml`; rustup auto-installs any listed target that is missing, so the image pre-installs them all. fvm is intentionally not installed (`fvm use` would rewrite the macOS-side `.fvm` symlink on the shared mount); `MELOS_SDK_PATH` points melos at `~/flutter` instead.
@@ -65,6 +67,7 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - Defaults are tuned for casual local use (`root` / `default`); don't suggest making them "production-grade".
 - `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` are loaded from `.env` into the workspace container for claude-code. **Don't suggest using OAuth flow** — this is intentionally designed around token + proxy URL, login isn't needed.
 - `GH_TOKEN` is forwarded from `.env` into the workspace container for GitHub CLI. Prefer this non-interactive token path over `gh auth login`.
+- `AI_GATEWAY_API_KEY` is the key omp's `omp/agent/models.yml` gateway provider reads (`apiKey: AI_GATEWAY_API_KEY`); keep the name in sync with that file.
 - `HOST_UID` / `HOST_GID` are auto-injected by the Makefile via `id -u` / `id -g` and exported; they're not stored in `.env` and don't need to be set manually. **Only build / start through the Makefile** — calling `docker compose build` directly falls back to compose's default `1000/1000` and breaks ownership.
 
 ## Before committing

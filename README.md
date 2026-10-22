@@ -2,7 +2,7 @@
 
 自己嘅開發沙盒，一個容器入面塞晒平時用嘅工具，再夾埋 MySQL / ClickHouse / Redis 三個 DB，方便試嘢、寫 demo、玩新 library 嗰陣唔使污染本機。
 
-ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。Claude 個人設定（skills / commands / settings）就用 [`storyn26383/.claude`](https://github.com/storyn26383/.claude) submodule 落到 `claude/`，再 mount 入 workspace container 做 `/home/sandbox/.claude`。
+ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。Claude 個人設定（skills / commands / settings）就用 [`storyn26383/.claude`](https://github.com/storyn26383/.claude) submodule 落到 `claude/`，再 mount 入 workspace container 做 `/home/sandbox/.claude`。omp 設定都係咁，用 [`storyn26383/.omp`](https://github.com/storyn26383/.omp) submodule 落到 `omp/`，mount 做 `/home/sandbox/.omp`。
 
 ## 入面有咩 📦
 
@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Rust 1.89.0、Flutter 3.44.1、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | claude-code、openspec、ccusage、ntn（Notion）、clickup-cli、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | claude-code、omp、openspec、ccusage、ntn（Notion）、clickup-cli、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
 | 🦀 App 開發 | melos、flutter_rust_bridge_codegen、cargo-audit、protoc 26.1 |
 | 🌐 瀏覽器 | chromium（headless） |
 | 🔨 Build | composer、git、build-essential、clang、cmake、ninja、pkg-config |
@@ -91,6 +91,16 @@ ANTHROPIC_BASE_URL=你個 proxy / gateway URL
 寫入 `.env`（已 gitignore），`make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，`claude` 啟動時直接攞嚟用，唔使再 login。
 
 💡 workspace container 用 `env_file: .env` load 成個 `.env`，所以 `.env` 入面每條 key 都會入 container，加新 token 唔使改 `docker-compose.yml`。
+
+## omp 嘅認證 🔐
+
+omp 嘅 gateway provider 喺 `omp/agent/models.yml` 寫明 `apiKey: AI_GATEWAY_API_KEY`，喺 `.env` 寫入：
+
+```env
+AI_GATEWAY_API_KEY=你個 gateway key
+```
+
+`make start` 之後自動入 workspace container，`omp` 直接用。改咗 `models.yml` 個 key 名嘅話，`.env` / `.env.example` 要跟住改。
 
 ## GitHub CLI 嘅認證 🔐
 
@@ -185,6 +195,7 @@ sandbox-docker-compose/
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
 ├── .data/                      # MySQL / Redis 資料 + Claude Code 狀態 bind mount 落呢度（gitignore）
 ├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /home/sandbox/.claude
+├── omp/                        # submodule，sasaya 個人 omp 設定，mount 入容器做 /home/sandbox/.omp
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```
 

@@ -4,3 +4,6 @@
 [submodule "clickhouse"]
 	path = clickhouse
 	url = git@github.com:storyn26383/golden-clickhouse.git
+[submodule "omp"]
+	path = omp
+	url = git@github.com:storyn26383/.omp.git
