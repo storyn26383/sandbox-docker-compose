@@ -5,7 +5,9 @@ FROM phpswoole/swoole:6.2-php8.5
 # ==============================================================================
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Asia/Hong_Kong \
-    LANG=en_US.UTF-8
+    LANG=en_US.UTF-8 \
+    VISUAL=nvim \
+    EDITOR=nvim
 
 # ==============================================================================
 # System packages and locale
@@ -21,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared bookworm main" > /etc/apt/sources.list.d/cloudflared.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        git vim sudo unzip zip xz-utils \
+        git neovim sudo unzip zip xz-utils \
         clang cmake ninja-build pkg-config \
         gh cloudflared jq ripgrep fzf htop direnv \
         chromium \

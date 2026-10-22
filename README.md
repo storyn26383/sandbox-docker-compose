@@ -14,6 +14,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
 | 🤖 CLI | claude-code、omp、openspec、ccusage、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
 | 🦀 App 開發 | melos、flutter_rust_bridge_codegen、cargo-audit、protoc 26.1 |
+| 📝 編輯器 | Neovim（`nvim`），`VISUAL` / `EDITOR` 預設用佢 |
 | 🌐 瀏覽器 | chromium（headless） |
 | 🔨 Build | composer、git、build-essential、clang、cmake、ninja、pkg-config |
 | 🗄️ DB client | mysql、redis-cli |
@@ -101,6 +102,8 @@ AI_GATEWAY_API_KEY=你個 gateway key
 ```
 
 `make start` 之後自動入 workspace container，`omp` 直接用。改咗 `models.yml` 個 key 名嘅話，`.env` / `.env.example` 要跟住改。
+
+omp 開外置編輯器會用 Neovim；image 已經設定 `VISUAL=nvim` 同 `EDITOR=nvim`，唔使另外加 `.env`。現有容器要先 `make build` 再 `make start`，之後重新 `make shell` 入去開 omp。
 
 ## GitHub CLI 嘅認證 🔐
 
