@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Rust 1.89.0、Flutter 3.44.1、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | claude-code、omp、openspec、ccusage、ntn（Notion）、clickup-cli、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | claude-code、omp、openspec、ccusage、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
 | 🦀 App 開發 | melos、flutter_rust_bridge_codegen、cargo-audit、protoc 26.1 |
 | 🌐 瀏覽器 | chromium（headless） |
 | 🔨 Build | composer、git、build-essential、clang、cmake、ninja、pkg-config |
@@ -135,26 +135,15 @@ SENTRY_AUTH_TOKEN=你個 Sentry token
 
 ⚠️ `sentry-cli` 預設會 load 當前目錄（同上層）嘅 `.env`，但唔會蓋過已經 export 咗嘅 env，所以 `SENTRY_AUTH_TOKEN` 唔會被 project 換走；不過冇 set 嘅 `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_URL` 就會由 project 嘅 `.env` 補上，喺唔同 project 行 org / project 可能自動變咗。用 `sentry-cli info` 睇實際讀咗乜。
 
-## Notion CLI 嘅認證 🔐
+## Notion / ClickUp token 🔐
 
-Notion 官方 CLI 叫 `ntn`（唔係 `notion`）。喺 `.env` 寫入：
+冇裝 Notion / ClickUp CLI，平時經 remote MCP server 讀。token 留畀 MCP 用唔到嗰陣直接 call API 做 fallback。喺 `.env` 寫入：
 
 ```env
 NOTION_API_TOKEN=你個 Notion PAT
-```
-
-`make start` 之後自動 forward 入 workspace container，`ntn` 直接讀，唔使行 `ntn login`（container 冇 keychain，行 login flow 好煩）。
-
-## ClickUp CLI 嘅認證 🔐
-
-用第三方嘅 [`clickup-cli`](https://github.com/nicholasbester/clickup-cli)（ClickUp 冇官方 CLI），由 GitHub release 落載、鎖版本、對 checksum，淨係裝 `clickup-cli`，冇裝 `clkup` 簡寫。喺 `.env` 寫入：
-
-```env
 CLICKUP_TOKEN=pk_你個 ClickUp personal token
 CLICKUP_WORKSPACE=你個 workspace ID
 ```
-
-`make start` 之後自動 forward 入 workspace container，唔使行 `clickup-cli setup`。
 
 ## Slack CLI 嘅認證 🔐
 

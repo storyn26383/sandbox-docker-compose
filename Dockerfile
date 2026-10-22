@@ -57,7 +57,7 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
 # ==============================================================================
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g @anthropic-ai/claude-code @fission-ai/openspec ccusage ntn \
+    && npm install -g @anthropic-ai/claude-code @fission-ai/openspec ccusage \
     && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
 
@@ -197,32 +197,6 @@ RUN set -eux; \
     tar -C /usr/local -xzf "/tmp/${slack_cli_archive}" bin/slack; \
     rm "/tmp/${slack_cli_archive}"; \
     slack version
-
-# ==============================================================================
-# clickup-cli
-# ==============================================================================
-ARG CLICKUP_CLI_VERSION=0.18.0
-
-RUN set -eux; \
-    case "$(dpkg --print-architecture)" in \
-        amd64) \
-            clickup_cli_archive="clickup-linux-x86_64.tar.gz"; \
-            clickup_cli_checksum="f88cc1373a5ca1ed0a204300f6eff84f5275e9f35aa50b0e6a08b77046f35cb6"; \
-            ;; \
-        arm64) \
-            clickup_cli_archive="clickup-linux-arm64.tar.gz"; \
-            clickup_cli_checksum="bc0e7482e9b9f6fc7c04bc04f7bf0797cc7fdd140097818c8068fe528b21ac6c"; \
-            ;; \
-        *) \
-            echo "Unsupported clickup-cli architecture: $(dpkg --print-architecture)" >&2; \
-            exit 1; \
-            ;; \
-    esac; \
-    curl --fail --location --show-error --silent "https://github.com/nicholasbester/clickup-cli/releases/download/v${CLICKUP_CLI_VERSION}/${clickup_cli_archive}" --output "/tmp/${clickup_cli_archive}"; \
-    echo "${clickup_cli_checksum}  /tmp/${clickup_cli_archive}" | sha256sum --check; \
-    tar -C /usr/local/bin -xzf "/tmp/${clickup_cli_archive}" clickup-cli; \
-    rm "/tmp/${clickup_cli_archive}"; \
-    clickup-cli --version
 
 # ==============================================================================
 # protoc
