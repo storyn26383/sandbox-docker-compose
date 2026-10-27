@@ -229,8 +229,7 @@ sandbox-docker-compose/
 ├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / gh / glab / Sentry / Slack / Notion / ClickUp / Cloudflare Tunnel token + omp-session-gateway 設定
 ├── Makefile                    # 全部 make 指令
 ├── Dockerfile                  # workspace 容器點 build
-├── supervisor/omp-gateway.conf # omp-session-gateway 嘅 supervisord program，build 入 image
-├── omp-gateway/config.jq       # 由 .env 生成 gateway config.json 嘅 template
+├── supervisor/                 # omp-session-gateway 嘅 supervisord program（build 入 image）+ 由 .env 生成 gateway config.json 嘅 jq template
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
 ├── .data/                      # MySQL / Redis 資料 + Claude Code 狀態 + omp-session-gateway config / state bind mount 落呢度（gitignore）
 ├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /home/sandbox/.claude

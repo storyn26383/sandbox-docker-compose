@@ -51,7 +51,7 @@ init-omp-gateway: $(OMP_GATEWAY_DATA)
 			&& mkdir -p $(OMP_GATEWAY_CONFIG_DIRECTORY) $(OMP_GATEWAY_STATE_DIRECTORY) \
 			&& jq -n -f /dev/stdin > $(OMP_GATEWAY_CONFIG_DIRECTORY)/config.json.tmp \
 			&& mv $(OMP_GATEWAY_CONFIG_DIRECTORY)/config.json.tmp $(OMP_GATEWAY_CONFIG_DIRECTORY)/config.json' \
-		< omp-gateway/config.jq
+		< supervisor/omp-session-gateway-config.jq
 	docker compose exec workspace supervisorctl restart omp-gateway
 
 logs:
