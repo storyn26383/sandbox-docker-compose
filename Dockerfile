@@ -47,6 +47,7 @@ ARG GIT_USER_EMAIL=
 RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USERNAME} \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
+    && echo 'umask 022' >> /home/${USERNAME}/.bashrc \
     && echo "alias claude='claude --allow-dangerously-skip-permissions'" >> /home/${USERNAME}/.bashrc \
     && echo 'eval "$(direnv hook bash)"' >> /home/${USERNAME}/.bashrc \
     && printf '[user]\n\tname = %s\n\temail = %s\n[core]\n\texcludesfile = /home/%s/.gitignore_global\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" "${USERNAME}" > /home/${USERNAME}/.gitconfig \

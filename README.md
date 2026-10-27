@@ -210,3 +210,4 @@ make reset
 - ClickHouse 嘅 XML config（servers / macros / zookeeper / cors / timezone）由 submodule 提供，唔好喺 sandbox 度改；要改就入 `clickhouse/` 嗰個 submodule（remote 係 `storyn26383/golden-clickhouse`）改完 push。
 - Apple Silicon（M 系）行得通，全部 image / install script 都有 arm64 版。
 - Rust / Flutter 裝喺 sandbox user 嘅 home（`~/.cargo`、`~/.rustup`、`~/flutter`），冇裝 fvm。`MELOS_SDK_PATH` 已經指住 `~/flutter`，直接 `melos bootstrap` 就得，唔好喺 container 行 `fvm use`。
+- `make shell` 入去嘅 sandbox bash 預設 `umask 022`，新開 folder 係 `755`、新檔案係 `644`。現有 container 要 `make build` 再 `make start`，之後重新 `make shell`。
