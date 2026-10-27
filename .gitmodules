@@ -7,3 +7,6 @@
 [submodule "omp"]
 	path = omp
 	url = git@github.com:storyn26383/.omp.git
+[submodule "omp-session-gateway"]
+	path = omp-session-gateway
+	url = git@github.com:storyn26383/omp-session-gateway.git

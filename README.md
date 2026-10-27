@@ -2,7 +2,7 @@
 
 自己嘅開發沙盒，一個容器入面塞晒平時用嘅工具，再夾埋 MySQL / ClickHouse / Redis 三個 DB，方便試嘢、寫 demo、玩新 library 嗰陣唔使污染本機。
 
-ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。Claude 個人設定（skills / commands / settings）就用 [`storyn26383/.claude`](https://github.com/storyn26383/.claude) submodule 落到 `claude/`，再 mount 入 workspace container 做 `/home/sandbox/.claude`。omp 設定都係咁，用 [`storyn26383/.omp`](https://github.com/storyn26383/.omp) submodule 落到 `omp/`，mount 做 `/home/sandbox/.omp`。
+ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。Claude 個人設定（skills / commands / settings）就用 [`storyn26383/.claude`](https://github.com/storyn26383/.claude) submodule 落到 `claude/`，再 mount 入 workspace container 做 `/home/sandbox/.claude`。omp 設定都係咁，用 [`storyn26383/.omp`](https://github.com/storyn26383/.omp) submodule 落到 `omp/`，mount 做 `/home/sandbox/.omp`。omp-session-gateway 用 [`storyn26383/omp-session-gateway`](https://github.com/storyn26383/omp-session-gateway) submodule 落到 `omp-session-gateway/`，mount 做 `/home/sandbox/omp-session-gateway`。
 
 ## 入面有咩 📦
 
@@ -65,7 +65,8 @@ make stop       # 全部停
 make restart    # 重啟
 make shell      # docker exec 入 workspace container（pwd ~/workspace）
 make logs       # tail 晒所有 log
-make reset      # 一鍵清晒（連 ClickHouse data 都冚）
+make reset      # 一鍵清晒（連 ClickHouse data 同 gateway config 都冚）
+make init-omp-gateway  # 裝 / build omp-session-gateway、由 .env 生成 config、重啟 gateway
 ```
 
 ## Workspace 📂
@@ -162,6 +163,50 @@ SLACK_USER_TOKEN=xoxp-你個 Slack user token
 
 ⚠️ `slack api` 揀 token 嘅次序係 `--token` → `--app` → `SLACK_BOT_TOKEN` → `SLACK_USER_TOKEN`，即係如果有 `SLACK_BOT_TOKEN`，會蓋過呢條 read-only token。
 
+## omp-session-gateway + Cloudflare Tunnel 🌐
+
+主要用途係經 Cloudflare Tunnel + Access 由外面用 [omp-session-gateway](https://github.com/storyn26383/omp-session-gateway)（`cloudflare-access` mode，詳情睇 submodule 入面嘅 `docs/CLOUDFLARE_ACCESS.md`）。
+
+- Gateway 由 workspace container 入面嘅 supervisord 跑（`supervisor/omp-gateway.conf` build 入 image），聽 `127.0.0.1:4317`。
+- `cloudflared` 係獨立 service，用 `network_mode: "service:workspace"` 同 workspace 共用 network namespace，所以 tunnel 入嚟嘅流量對 gateway 嚟講係 loopback。
+- Route 全部喺 Cloudflare 後台（Networking → Tunnels）設定，repo 唔放 `config.yml`。
+
+### 第一次設定
+
+1. Cloudflare Zero Trust 開一個 **self-hosted Access application**，hostname 例如 `omp.example.com`，policy 淨係放自己。抄低 **AUD tag**（64 個 hex 字元）同 team domain（`<team>.cloudflareaccess.com`）。
+2. 開一條 Cloudflare Tunnel，public hostname `omp.example.com` 指去 `http://localhost:4317`。
+3. 喺 `.env` 寫入：
+
+   ```env
+   CLOUDFLARE_TUNNEL_TOKEN=你個 tunnel token
+   OMP_GATEWAY_TEAM_DOMAIN=你個 team.cloudflareaccess.com
+   OMP_GATEWAY_AUDIENCE=你個 AUD tag
+   OMP_GATEWAY_ORIGIN=https://omp.example.com
+   OMP_GATEWAY_ALLOWED_LOGINS=you@example.com
+   ```
+
+   `OMP_GATEWAY_ALLOWED_LOGINS` 可以用逗號分隔多個 email。Tunnel token 已經包含 tunnel ID，唔使另外指定。
+4. `make build && make start`，跟住 `make init-omp-gateway`。
+5. 驗證：`make shell` 入去行
+
+   ```bash
+   cd ~/omp-session-gateway
+   XDG_CONFIG_HOME=~/.omp-gateway/config XDG_STATE_HOME=~/.omp-gateway/state bun apps/gateway/src/cli.ts doctor
+   ```
+
+   睇 `accessKeysReachable` 同 `accessEnforced` 係咪 `true`（`serviceInstalled` / `serviceActive` 係 `false` 係正常，因為唔係 systemd）。
+
+### 平時
+
+- 改咗 `OMP_GATEWAY_*` 或者更新咗 submodule，再行一次 `make init-omp-gateway`。
+- Gateway 嘅 config / state 喺 `.data/omp-gateway`（mount 做 `~/.omp-gateway`），必須係 `700`；gateway 唔接受 group / world 讀得到嘅路徑。
+- 未行 `make init-omp-gateway` 之前，supervisord 會重試幾次起 gateway，之後停喺 `FATAL`，`make logs` 會見到錯誤，唔影響其他嘢。
+- 第一次 `make start` 之前，`cloudflared` 如果未填 token 會不停重啟、報錯。
+- `workspace` 一重建（例如 `make build` 後 `make start`），`cloudflared` 都要跟住重建先會加入新嘅 network namespace；`make start` / `make restart` 會一齊處理。
+- 其他 dev server 想開出去，一樣喺後台加 route 指去 `http://localhost:<port>`，記得加 Access 保護。DB 唔好開出去。
+- Image 用 `latest`，要更新就行 `docker compose pull cloudflared` 再 `make start`。
+- 睇狀態：`docker compose logs cloudflared` / `docker compose logs workspace`（gateway log 會出喺 workspace 度），或者後台睇 tunnel 係咪 Healthy。
+
 ## 連 DB 🔌
 
 Sandbox 嘅 DB 全部唔 publish 到 host，host 冇直接連入嚟嘅路徑（設計如此，避免同你本機 DB port 撞）。要連 DB 就 `make shell` 入 workspace container，用 service name 連：
@@ -181,13 +226,16 @@ curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
 sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
-├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / gh / glab / Sentry / Slack / Notion / ClickUp token
+├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / gh / glab / Sentry / Slack / Notion / ClickUp / Cloudflare Tunnel token + omp-session-gateway 設定
 ├── Makefile                    # 全部 make 指令
 ├── Dockerfile                  # workspace 容器點 build
+├── supervisor/omp-gateway.conf # omp-session-gateway 嘅 supervisord program，build 入 image
+├── omp-gateway/config.jq       # 由 .env 生成 gateway config.json 嘅 template
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
-├── .data/                      # MySQL / Redis 資料 + Claude Code 狀態 bind mount 落呢度（gitignore）
+├── .data/                      # MySQL / Redis 資料 + Claude Code 狀態 + omp-session-gateway config / state bind mount 落呢度（gitignore）
 ├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /home/sandbox/.claude
 ├── omp/                        # submodule，sasaya 個人 omp 設定，mount 入容器做 /home/sandbox/.omp
+├── omp-session-gateway/        # submodule（storyn26383/omp-session-gateway），mount 入容器做 /home/sandbox/omp-session-gateway
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```
 
@@ -200,9 +248,9 @@ make reset
 會做兩樣嘢：
 
 1. `docker compose down` —— 停晒所有 service
-2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis` —— ClickHouse / MySQL / Redis 資料一齊清（保留 `./workspace`）
+2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis .data/omp-gateway` —— ClickHouse / MySQL / Redis 資料同 omp-session-gateway 嘅 config / state 一齊清（保留 `./workspace`）
 
-跟住 `make start` 就係全新一個。
+跟住 `make start` 就係全新一個；用 gateway 嘅話要再行 `make init-omp-gateway`。
 
 ## 提一提 ⚠️
 

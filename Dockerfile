@@ -281,6 +281,13 @@ RUN set -eux; \
 USER root
 
 # ==============================================================================
+# omp-session-gateway (supervisord)
+# ==============================================================================
+# The base entrypoint copies task.d/*.conf into conf.d and runs supervisord beside the CMD.
+# The program serves the omp-session-gateway submodule prepared by `make init-omp-gateway`.
+COPY supervisor/omp-gateway.conf /etc/supervisor/task.d/omp-gateway.conf
+
+# ==============================================================================
 # PHP: Composer, extensions, and Swoole config
 # ==============================================================================
 RUN curl -sS https://getcomposer.org/installer \
