@@ -65,7 +65,7 @@ make stop       # 全部停
 make restart    # 重啟
 make shell      # docker exec 入 workspace container（pwd ~/workspace）
 make logs       # tail 晒所有 log
-make reset      # 一鍵清晒（連 ClickHouse data 同 gateway config 都冚）
+make reset-db   # 一鍵清晒 DB data（ClickHouse / MySQL / Redis）
 make init-omp-gateway  # 裝 / build omp-session-gateway、由 .env 生成 config、重啟 gateway
 ```
 
@@ -229,7 +229,7 @@ SLACK_USER_TOKEN=xoxp-你個 Slack user token
 
 ### 平時
 
-- Node state 喺 `.data/tailscale`，`make reset` 唔會清；註冊咗之後 auth key 過期都冇所謂。想重新註冊就自己 `rm -rf .data/tailscale`，記得喺 admin console 刪走舊 node，唔係新嗰個會變 `sandbox-1`。
+- Node state 喺 `.data/tailscale`，`make reset-db` 唔會清；註冊咗之後 auth key 過期都冇所謂。想重新註冊就自己 `rm -rf .data/tailscale`，記得喺 admin console 刪走舊 node，唔係新嗰個會變 `sandbox-1`。
 - `workspace` 一重建，`tailscale` 都要跟住重建；`make start` / `make restart` 會一齊處理。
 - Image 用 `latest`，要更新就行 `docker compose pull tailscale` 再 `make start`。
 - 要 HTTPS（secure context）嘅話臨時喺 container 行 `tailscale serve`，唔寫入 compose。
@@ -265,18 +265,18 @@ sandbox-docker-compose/
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```
 
-## 想清乾淨重新嚟過 🧹
+## 清 DB 重新嚟過 🧹
 
 ```bash
-make reset
+make reset-db
 ```
 
 會做兩樣嘢：
 
 1. `docker compose down` —— 停晒所有 service
-2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis .data/omp-gateway` —— ClickHouse / MySQL / Redis 資料同 omp-session-gateway 嘅 config / state 一齊清（保留 `./workspace` 同 `.data/tailscale`）
+2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis` —— 清 ClickHouse / MySQL / Redis 資料（保留 `./workspace`、`.data/omp-gateway` 同 `.data/tailscale`）
 
-跟住 `make start` 就係全新一個；用 gateway 嘅話要再行 `make init-omp-gateway`。
+跟住 `make start` 就係一套全新 DB；gateway config / state 唔受影響。
 
 ## 提一提 ⚠️
 
