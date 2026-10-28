@@ -96,10 +96,11 @@ ANTHROPIC_BASE_URL=你個 proxy / gateway URL
 
 ## omp 嘅認證 🔐
 
-omp 嘅 gateway provider 喺 `omp/agent/models.yml` 寫明 `apiKey: AI_GATEWAY_API_KEY`，喺 `.env` 寫入：
+omp 有兩個 gateway provider，`omp/agent/models.yml` 分別寫明 `frontend-gateway` 用 `apiKey: FRONTEND_GATEWAY_API_KEY`、`backend-gateway` 用 `apiKey: BACKEND_GATEWAY_API_KEY`，喺 `.env` 寫入：
 
 ```env
-AI_GATEWAY_API_KEY=你個 gateway key
+FRONTEND_GATEWAY_API_KEY=你個 frontend gateway key
+BACKEND_GATEWAY_API_KEY=你個 backend gateway key
 ```
 
 `make start` 之後自動入 workspace container，`omp` 直接用。改咗 `models.yml` 個 key 名嘅話，`.env` / `.env.example` 要跟住改。
