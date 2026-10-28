@@ -1,12 +1,13 @@
 // Forwards agent state reports from the workspace container to the host herdr server.
 //
 // The herdr socket can type into any pane and run commands on the host, so this relay
-// accepts only state reports from a `sandbox-*` source for a known agent, and strips the
-// fields herdr uses to resume sessions. Everything else is rejected before it reaches herdr.
+// accepts only state reports from a `sandbox:*` source for a known agent, and strips the
+// fields that could run something on the host. Everything else is rejected before herdr.
 //
 // The agent keeps its real name (`omp`, `claude`) so herdr and Collie pick that agent's
-// screen grammar; the `sandbox-*` source is what keeps herdr from treating the report as
-// its own integration, which is the only path to recording a session or resuming one.
+// screen grammar. The `sandbox:*` source keeps herdr from treating the report as its own
+// integration, so the session id is recorded for Collie but never drives a resume; the
+// patched herdr in ~/Coding/Sasaya/herdr (dev-env branch) is what records it.
 
 import net from "node:net";
 import os from "node:os";
@@ -16,7 +17,7 @@ const LISTEN_HOST = "127.0.0.1";
 const LISTEN_PORT = Number(process.env.HERDR_RELAY_PORT ?? 47123);
 const HERDR_SOCKET_PATH =
   process.env.HERDR_RELAY_SOCKET_PATH ?? path.join(os.homedir(), ".config/herdr/herdr.sock");
-const SANDBOX_SOURCE_PREFIX = "sandbox-";
+const SANDBOX_SOURCE_PREFIX = "sandbox:";
 const ALLOWED_AGENTS: Record<string, true> = { omp: true, claude: true };
 const MAX_LINE_BYTES = 16 * 1024;
 
@@ -25,7 +26,8 @@ const ALLOWED_METHODS: Record<string, true> = {
   "pane.report_agent_session": true,
   "pane.release_agent": true,
 };
-const RESUME_FIELDS = ["resume_argv", "agent_session_id", "agent_session_path"];
+// resume_argv would run on the host; a container session path names nothing on the host.
+const STRIPPED_FIELDS = ["resume_argv", "agent_session_path"];
 
 type RelayRequest = { id?: unknown; method?: unknown; params?: Record<string, unknown> };
 
@@ -45,7 +47,7 @@ function sanitize(line: string): string | undefined {
   if (typeof params.agent !== "string" || !Object.hasOwn(ALLOWED_AGENTS, params.agent)) return undefined;
 
   const allowedParams = { ...params };
-  for (const field of RESUME_FIELDS) delete allowedParams[field];
+  for (const field of STRIPPED_FIELDS) delete allowedParams[field];
   return JSON.stringify({ id: request.id, method: request.method, params: allowedParams });
 }
 
