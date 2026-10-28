@@ -16,6 +16,9 @@ services:
     stdin_open: true
     working_dir: /home/sandbox/workspace
     env_file: .env
+    environment:
+      # Where agents report state to herdr; the host side is herdr-relay.ts, started by `make start`
+      HERDR_RELAY_ADDRESS: host.docker.internal:${HERDR_RELAY_PORT:-47123}
     volumes:
       - ./claude:/home/sandbox/.claude
       - ./.data/claude.json:/home/sandbox/.claude.json

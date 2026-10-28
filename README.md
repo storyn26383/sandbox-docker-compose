@@ -60,8 +60,8 @@ git submodule update --init --recursive
 
 ```bash
 make build      # build workspace image（改完 Dockerfile 行呢句）
-make start      # 起所有 service
-make stop       # 全部停
+make start      # 起所有 service（連埋 host 上嘅 herdr relay）
+make stop       # 全部停（連埋 herdr relay）
 make restart    # 重啟
 make shell      # docker exec 入 workspace container（pwd ~/workspace）
 make logs       # tail 晒所有 log
@@ -234,6 +234,25 @@ SLACK_USER_TOKEN=xoxp-你個 Slack user token
 - Image 用 `latest`，要更新就行 `docker compose pull tailscale` 再 `make start`。
 - 要 HTTPS（secure context）嘅話臨時喺 container 行 `tailscale serve`，唔寫入 compose。
 
+## herdr 🐑
+
+喺 [herdr](https://herdr.dev) 入面 `make shell` 再開 `omp` / `claude`，sidebar、通知同 Collie 都見到佢哋嘅 `working` / `blocked` / `idle`，名同 host 嘅一樣係 `omp` / `claude`（分唔到係刻意，Collie 要真名先會用嗰個 agent 嘅畫面規則）。
+
+點運作：
+
+- herdr 喺 pane 只見到 `docker exec`，認唔到入面嘅 agent，所以由 agent 自己報狀態：`claude/hooks/herdr-state.ts` 同 `omp/agent/extensions/herdr-state.ts`（host 同 sandbox 共用，有 `HERDR_RELAY_ADDRESS` 就行 sandbox 模式）
+- OrbStack 唔傳得 macOS 嘅 Unix socket 入容器，所以 `make start` 會喺 host 起 `herdr-relay.ts`（`127.0.0.1:47123`），容器經 `host.docker.internal` 連返去
+- `docker-compose.yml` 幫 workspace 設定 `HERDR_RELAY_ADDRESS`（port 跟 Makefile 嘅 `HERDR_RELAY_PORT`）；`make shell` 再將 `HERDR_ENV` / `HERDR_PANE_ID` 傳入容器，因為呢兩個係你喺邊個 herdr pane 行 `make shell` 先知，喺 herdr 以外行就唔會有
+
+⚠️ herdr socket 可以喺任何 pane 打字、喺 host 行 command，所以 relay 只放行 source 係 `sandbox-*`、agent 係 `omp` / `claude` 嘅狀態報告，`resume_argv` 同 session 欄位全部剷走，其他 request 一律 `relay_rejected`。唔好改做直接轉發。
+
+限制：
+
+- sandbox 入面嘅 agent herdr 重啟後唔會自動 resume
+- Collie 喺 sandbox pane 冇 Chat / History：herdr 只會記低官方 integration（`herdr:*` source）嘅 session，而官方 source 要見到 pane 入面嘅 agent process，container 入面嘅佢見唔到。`collie doctor` 因此會報 `integration-omp` / `agent-sessions`，唔好跟佢行 `herdr integration install`
+- Claude 彈 approval 撳 Esc 取消，會停喺 `blocked` 直到下一句輸入
+- relay log 喺 `.data/herdr-relay.log`；relay 死咗就 `make stop && make start`
+
 ## 連 DB 🔌
 
 Sandbox 嘅 DB 全部唔 publish 到 host，host 冇直接連入嚟嘅路徑（設計如此，避免同你本機 DB port 撞）。要連 DB 就 `make shell` 入 workspace container，用 service name 連：
@@ -255,6 +274,7 @@ sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
 ├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / gh / glab / Sentry / Slack / Notion / ClickUp / Cloudflare Tunnel / Tailscale token + omp-session-gateway 設定
 ├── Makefile                    # 全部 make 指令
+├── herdr-relay.ts              # make start 喺 host 起嘅 herdr relay，只放行 sandbox agent 狀態報告
 ├── Dockerfile                  # workspace 容器點 build
 ├── supervisor/                 # omp-session-gateway 嘅 supervisord program（build 入 image）+ 由 .env 生成 gateway config.json 嘅 jq template
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）

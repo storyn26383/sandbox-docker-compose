@@ -1,4 +1,4 @@
-.PHONY: init init-omp-gateway build start stop restart shell logs reset-db
+.PHONY: init init-omp-gateway build start stop restart shell logs reset-db herdr-relay-start herdr-relay-stop
 
 -include .env
 export
@@ -12,6 +12,9 @@ CLAUDE_JSON := .data/claude.json
 OMP_GATEWAY_DATA := .data/omp-gateway
 OMP_GATEWAY_CONFIG_DIRECTORY := /home/sandbox/.omp-gateway/config/omp-session-gateway
 OMP_GATEWAY_STATE_DIRECTORY := /home/sandbox/.omp-gateway/state
+HERDR_RELAY_PID := .data/herdr-relay.pid
+HERDR_RELAY_LOG := .data/herdr-relay.log
+HERDR_RELAY_PORT := 47123
 
 init: .env build $(CLAUDE_JSON) $(OMP_GATEWAY_DATA)
 	git submodule update --init --recursive
@@ -30,16 +33,25 @@ $(OMP_GATEWAY_DATA):
 build:
 	docker compose build $(filter-out build,$(MAKECMDGOALS))
 
-start:
+start: herdr-relay-start
 	docker compose up -d
 
-stop:
+stop: herdr-relay-stop
 	docker compose down
+
+# Host-side bridge so agents inside the container can report state to herdr; see herdr-relay.ts
+herdr-relay-start:
+	@mkdir -p $(dir $(HERDR_RELAY_PID))
+	@if [ -f $(HERDR_RELAY_PID) ] && kill -0 $$(cat $(HERDR_RELAY_PID)) 2>/dev/null; then :; \
+	else HERDR_RELAY_PORT=$(HERDR_RELAY_PORT) nohup bun herdr-relay.ts > $(HERDR_RELAY_LOG) 2>&1 & echo $$! > $(HERDR_RELAY_PID); fi
+
+herdr-relay-stop:
+	@if [ -f $(HERDR_RELAY_PID) ]; then kill $$(cat $(HERDR_RELAY_PID)) 2>/dev/null || true; rm -f $(HERDR_RELAY_PID); fi
 
 restart: stop start
 
 shell:
-	docker compose exec -u sandbox workspace bash
+	docker compose exec -u sandbox -e HERDR_ENV -e HERDR_PANE_ID workspace bash
 
 init-omp-gateway: $(OMP_GATEWAY_DATA)
 	docker compose exec -u sandbox -w /home/sandbox/omp-session-gateway \
