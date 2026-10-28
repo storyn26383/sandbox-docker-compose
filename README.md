@@ -207,6 +207,33 @@ SLACK_USER_TOKEN=xoxp-你個 Slack user token
 - Image 用 `latest`，要更新就行 `docker compose pull cloudflared` 再 `make start`。
 - 睇狀態：`docker compose logs cloudflared` / `docker compose logs workspace`（gateway log 會出喺 workspace 度），或者後台睇 tunnel 係咪 Healthy。
 
+## Tailscale 🔗
+
+喺自己部 Mac / 手機經 tailnet 直接連 workspace 入面嘅 dev server，唔使逐個 port 去 Cloudflare 後台加 route。
+
+- `tailscale` 係獨立 service，同 `cloudflared` 一樣用 `network_mode: "service:workspace"`，tailnet 上面個 node 叫 `sandbox`。
+- 行 kernel（TUN）mode，所以 **dev server 要 bind `0.0.0.0`** 先連得到（例如 `vite --host`），淨係 bind `127.0.0.1` 嘅連唔到。Gateway（`127.0.0.1:4317`）因此喺 tailnet 見唔到，入口照舊淨係 Cloudflare。
+- 唔好轉 userspace mode：會將所有 loopback listener 開晒畀 tailnet。
+
+### 第一次設定
+
+1. Tailscale admin console → Settings → Keys 開一條 auth key。
+2. 喺 `.env` 寫入：
+
+   ```env
+   TAILSCALE_AUTH_KEY=tskey-auth-...
+   ```
+
+3. `make start`，`docker compose logs tailscale` 見到 `Startup complete` 就得。
+4. 驗證：`make shell` 入去行 `python3 -m http.server 8000 --bind 0.0.0.0`，喺 Mac 開 `http://sandbox:8000`。
+
+### 平時
+
+- Node state 喺 `.data/tailscale`，`make reset` 唔會清；註冊咗之後 auth key 過期都冇所謂。想重新註冊就自己 `rm -rf .data/tailscale`，記得喺 admin console 刪走舊 node，唔係新嗰個會變 `sandbox-1`。
+- `workspace` 一重建，`tailscale` 都要跟住重建；`make start` / `make restart` 會一齊處理。
+- Image 用 `latest`，要更新就行 `docker compose pull tailscale` 再 `make start`。
+- 要 HTTPS（secure context）嘅話臨時喺 container 行 `tailscale serve`，唔寫入 compose。
+
 ## 連 DB 🔌
 
 Sandbox 嘅 DB 全部唔 publish 到 host，host 冇直接連入嚟嘅路徑（設計如此，避免同你本機 DB port 撞）。要連 DB 就 `make shell` 入 workspace container，用 service name 連：
@@ -226,7 +253,7 @@ curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
 sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
-├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / gh / glab / Sentry / Slack / Notion / ClickUp / Cloudflare Tunnel token + omp-session-gateway 設定
+├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / gh / glab / Sentry / Slack / Notion / ClickUp / Cloudflare Tunnel / Tailscale token + omp-session-gateway 設定
 ├── Makefile                    # 全部 make 指令
 ├── Dockerfile                  # workspace 容器點 build
 ├── supervisor/                 # omp-session-gateway 嘅 supervisord program（build 入 image）+ 由 .env 生成 gateway config.json 嘅 jq template
@@ -247,7 +274,7 @@ make reset
 會做兩樣嘢：
 
 1. `docker compose down` —— 停晒所有 service
-2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis .data/omp-gateway` —— ClickHouse / MySQL / Redis 資料同 omp-session-gateway 嘅 config / state 一齊清（保留 `./workspace`）
+2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis .data/omp-gateway` —— ClickHouse / MySQL / Redis 資料同 omp-session-gateway 嘅 config / state 一齊清（保留 `./workspace` 同 `.data/tailscale`）
 
 跟住 `make start` 就係全新一個；用 gateway 嘅話要再行 `make init-omp-gateway`。
 
