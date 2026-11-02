@@ -1,4 +1,4 @@
-FROM phpswoole/swoole:6.2-php8.5
+FROM phpswoole/swoole:6.3-php8.4
 
 # ==============================================================================
 # Base build environment
@@ -20,10 +20,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
     && wget -nv -O /etc/apt/keyrings/cloudflare-main.gpg https://pkg.cloudflare.com/cloudflare-main.gpg \
     && chmod go+r /etc/apt/keyrings/cloudflare-main.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared bookworm main" > /etc/apt/sources.list.d/cloudflared.list \
+    && echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" > /etc/apt/sources.list.d/cloudflared.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        git neovim sudo unzip zip xz-utils \
+        neovim sudo unzip zip xz-utils \
         clang cmake ninja-build pkg-config \
         gh cloudflared jq ripgrep fzf htop direnv \
         chromium \
@@ -34,6 +34,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && sed -i 's/^# *\(en_US.UTF-8\|zh_HK.UTF-8\)/\1/' /etc/locale.gen \
     && locale-gen \
     && rm -rf /var/lib/apt/lists/*
+
+# ==============================================================================
+# Git (built from source for the latest release; gh's apt package still pulls in Debian's older git as a dependency)
+# ==============================================================================
+ARG GIT_VERSION=2.56.0
+ARG GIT_CHECKSUM=26c56c296b38c0695b26fa95f475f1d01704d2d38e73465ca30b0b2f5dc789d3
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends libcurl4-openssl-dev libexpat1-dev libpcre2-dev libssl-dev zlib1g-dev; \
+    git_archive="git-${GIT_VERSION}.tar.xz"; \
+    curl --fail --location --show-error --silent "https://mirrors.edge.kernel.org/pub/software/scm/git/${git_archive}" --output "/tmp/${git_archive}"; \
+    echo "${GIT_CHECKSUM}  /tmp/${git_archive}" | sha256sum --check; \
+    tar -C /tmp -xJf "/tmp/${git_archive}"; \
+    make -C "/tmp/git-${GIT_VERSION}" -j"$(nproc)" prefix=/usr/local USE_LIBPCRE2=YesPlease NO_GETTEXT=YesPlease NO_TCLTK=YesPlease NO_RUST=YesPlease all install; \
+    rm -rf "/tmp/${git_archive}" "/tmp/git-${GIT_VERSION}" /var/lib/apt/lists/*; \
+    test "$(command -v git)" = /usr/local/bin/git; \
+    git --version
 
 # ==============================================================================
 # Sandbox user

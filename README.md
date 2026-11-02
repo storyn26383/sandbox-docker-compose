@@ -16,7 +16,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 | 🦀 App 開發 | melos、flutter_rust_bridge_codegen、cargo-audit、protoc 26.1 |
 | 📝 編輯器 | Neovim（`nvim`），`VISUAL` / `EDITOR` 預設用佢 |
 | 🌐 瀏覽器 | chromium（headless） |
-| 🔨 Build | composer、git、build-essential、clang、cmake、ninja、pkg-config |
+| 🔨 Build | composer、git 2.56.0（source build）、build-essential、clang、cmake、ninja、pkg-config |
 | 🗄️ DB client | mysql、redis-cli |
 | 🌐 網絡 | curl、wget、ping、dig、nc |
 
