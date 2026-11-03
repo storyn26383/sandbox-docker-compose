@@ -244,13 +244,14 @@ SLACK_USER_TOKEN=xoxp-你個 Slack user token
 - herdr 喺 pane 只見到 `docker exec`，認唔到入面嘅 agent，所以由 agent 自己報狀態：`claude/hooks/herdr-state.ts` 同 `omp/agent/extensions/herdr-state.ts`（host 同 sandbox 共用，有 `HERDR_RELAY_ADDRESS` 就行 sandbox 模式）
 - OrbStack 唔傳得 macOS 嘅 Unix socket 入容器，所以 `make start` 會喺 host 起 `herdr-relay.ts`（`127.0.0.1:47123`），容器經 `host.docker.internal` 連返去
 - `docker-compose.yml` 幫 workspace 設定 `HERDR_RELAY_ADDRESS`（port 跟 Makefile 嘅 `HERDR_RELAY_PORT`）；`make shell` 再將 `HERDR_ENV` / `HERDR_PANE_ID` 傳入容器，因為呢兩個係你喺邊個 herdr pane 行 `make shell` 先知，喺 herdr 以外行就唔會有
+- container 重開或者 agent crash 時，agent 嚟唔切報 release，而 herdr 自己睇唔到 container 入面，會一直當 agent 仲喺度。所以 relay 會記低轉發過嘅 agent（`.data/herdr-relay-agents.json`），收到 `HERDR_RELAY_CONTAINER`（Makefile 設做 `sandbox-workspace`）嘅 docker `die` event 就代佢哋 release；relay 啟動時如果發現 container 喺佢停咗嗰陣重開過，都會 release
 
-⚠️ herdr socket 可以喺任何 pane 打字、喺 host 行 command，所以 relay 只放行 source 係 `sandbox-*`、agent 係 `omp` / `claude` 嘅狀態報告，`resume_argv` 同 session 欄位全部剷走，其他 request 一律 `relay_rejected`。唔好改做直接轉發。
+⚠️ herdr socket 可以喺任何 pane 打字、喺 host 行 command，所以 relay 只放行 source 係 `sandbox:*`、agent 係 `omp` / `claude` 嘅狀態報告，剷走 `resume_argv` 同 `agent_session_path`，其他 request 一律 `relay_rejected`。唔好改做直接轉發。
 
 限制：
 
-- sandbox 入面嘅 agent herdr 重啟後唔會自動 resume
-- Collie 喺 sandbox pane 冇 Chat / History：herdr 只會記低官方 integration（`herdr:*` source）嘅 session，而官方 source 要見到 pane 入面嘅 agent process，container 入面嘅佢見唔到。`collie doctor` 因此會報 `integration-omp` / `agent-sessions`，唔好跟佢行 `herdr integration install`
+- sandbox 入面嘅 agent herdr 重啟後唔會自動 resume（係刻意嘅：`sandbox:*` session 只記 id，唔會喺 host 行 resume）
+- Collie 要用 `~/Coding/Sasaya/herdr`（`dev-env` branch）build 出嚟嘅 herdr，先會記低 `sandbox:*` 嘅 session id；官方 herdr 只記 `herdr:*`。另外 `~/.config/collie/.env` 嘅 `COLLIE_PI_ROOT` / `COLLIE_TRANSCRIPT_ROOT` 要包埋 `omp/agent/sessions` 同 `claude/projects`，Collie 先搵到 sandbox 嘅 transcript
 - Claude 彈 approval 撳 Esc 取消，會停喺 `blocked` 直到下一句輸入
 - relay log 喺 `.data/herdr-relay.log`；relay 死咗就 `make stop && make start`
 
@@ -275,7 +276,7 @@ sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
 ├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / gh / glab / Sentry / Slack / Notion / ClickUp / Cloudflare Tunnel / Tailscale token + omp-session-gateway 設定
 ├── Makefile                    # 全部 make 指令
-├── herdr-relay.ts              # make start 喺 host 起嘅 herdr relay，只放行 sandbox agent 狀態報告
+├── herdr-relay.ts              # make start 喺 host 起嘅 herdr relay，只放行 sandbox agent 狀態報告；container 停咗就代 agent release
 ├── Dockerfile                  # workspace 容器點 build
 ├── supervisor/                 # omp-session-gateway 嘅 supervisord program（build 入 image）+ 由 .env 生成 gateway config.json 嘅 jq template
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）

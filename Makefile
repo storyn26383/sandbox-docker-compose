@@ -15,6 +15,8 @@ OMP_GATEWAY_STATE_DIRECTORY := /home/sandbox/.omp-gateway/state
 HERDR_RELAY_PID := .data/herdr-relay.pid
 HERDR_RELAY_LOG := .data/herdr-relay.log
 HERDR_RELAY_PORT := 47123
+# its agents are released when it stops; the name comes from docker-compose.yml
+HERDR_RELAY_CONTAINER := sandbox-workspace
 
 init: .env build $(CLAUDE_JSON) $(OMP_GATEWAY_DATA)
 	git submodule update --init --recursive
@@ -43,7 +45,7 @@ stop: herdr-relay-stop
 herdr-relay-start:
 	@mkdir -p $(dir $(HERDR_RELAY_PID))
 	@if [ -f $(HERDR_RELAY_PID) ] && kill -0 $$(cat $(HERDR_RELAY_PID)) 2>/dev/null; then :; \
-	else HERDR_RELAY_PORT=$(HERDR_RELAY_PORT) nohup bun herdr-relay.ts > $(HERDR_RELAY_LOG) 2>&1 & echo $$! > $(HERDR_RELAY_PID); fi
+	else HERDR_RELAY_PORT=$(HERDR_RELAY_PORT) HERDR_RELAY_CONTAINER=$(HERDR_RELAY_CONTAINER) nohup bun herdr-relay.ts > $(HERDR_RELAY_LOG) 2>&1 & echo $$! > $(HERDR_RELAY_PID); fi
 
 herdr-relay-stop:
 	@if [ -f $(HERDR_RELAY_PID) ]; then kill $$(cat $(HERDR_RELAY_PID)) 2>/dev/null || true; rm -f $(HERDR_RELAY_PID); fi
