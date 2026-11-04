@@ -204,6 +204,7 @@ SLACK_USER_TOKEN=xoxp-你個 Slack user token
 - 未行 `make init-omp-gateway` 之前，supervisord 會重試幾次起 gateway，之後停喺 `FATAL`，`make logs` 會見到錯誤，唔影響其他嘢。
 - 第一次 `make start` 之前，`cloudflared` 如果未填 token 會不停重啟、報錯。
 - `workspace` 一重建（例如 `make build` 後 `make start`），`cloudflared` 都要跟住重建先會加入新嘅 network namespace；`make start` / `make restart` 會一齊處理。
+- `cloudflared` 斷咗線唔會自己死，只會一路重試，有時一直連唔返。所以加咗 healthcheck（`cloudflared tunnel ready`，冇 edge connection 就 unhealthy），由 `autoheal` service 自動 restart。Metrics 綁 `127.0.0.1:20241`，tailnet 見唔到。
 - 其他 dev server 想開出去，一樣喺後台加 route 指去 `http://localhost:<port>`，記得加 Access 保護。DB 唔好開出去。
 - Image 用 `latest`，要更新就行 `docker compose pull cloudflared` 再 `make start`。
 - 睇狀態：`docker compose logs cloudflared` / `docker compose logs workspace`（gateway log 會出喺 workspace 度），或者後台睇 tunnel 係咪 Healthy。
@@ -232,8 +233,17 @@ SLACK_USER_TOKEN=xoxp-你個 Slack user token
 
 - Node state 喺 `.data/tailscale`，`make reset-db` 唔會清；註冊咗之後 auth key 過期都冇所謂。想重新註冊就自己 `rm -rf .data/tailscale`，記得喺 admin console 刪走舊 node，唔係新嗰個會變 `sandbox-1`。
 - `workspace` 一重建，`tailscale` 都要跟住重建；`make start` / `make restart` 會一齊處理。
+- 同 `cloudflared` 一樣有 healthcheck：`tailscale status --json` 嘅 `Self.Online`（同 coordination server 有冇連住）唔係 `true` 就 unhealthy，`autoheal` 會 restart。
 - Image 用 `latest`，要更新就行 `docker compose pull tailscale` 再 `make start`。
 - 要 HTTPS（secure context）嘅話臨時喺 container 行 `tailscale serve`，唔寫入 compose。
+
+## autoheal 🩹
+
+Compose 唔會 restart unhealthy 嘅 container，所以加咗 [`willfarrell/autoheal`](https://github.com/willfarrell/docker-autoheal)：每 5 秒 check 一次，有 `autoheal=true` label 而又 unhealthy 嘅 container（而家係 `cloudflared` 同 `tailscale`）就 `docker restart`。Restart sidecar 順便會重新加入 workspace 而家嘅 network namespace。
+
+- 佢 mount 咗 `/var/run/docker.sock`，即係等同 host root；dev box 接受到，`network_mode: none` 至少令佢冇網絡。
+- 睇有冇 restart 過：`docker compose logs autoheal`，或者 `docker ps` 睇 sidecar 個 `(healthy)` / `(unhealthy)`。
+- 如果 `workspace` 係被重建（container ID 變咗），restart sidecar 會失敗；嗰種情況照舊要 `make start`。
 
 ## herdr 🐑
 

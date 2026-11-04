@@ -56,11 +56,21 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: sandbox-cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
+    command: tunnel --no-autoupdate --metrics 127.0.0.1:20241 run
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     # Shares workspace's network namespace so the gateway sees tunnel traffic as loopback.
     # Recreate this service whenever workspace is recreated.
+    # The process keeps retrying forever after losing the edge, so health is "has an active edge connection";
+    # autoheal restarts it when unhealthy. Metrics bind to loopback to stay off the tailnet.
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "--metrics", "127.0.0.1:20241", "ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 4
+      start_period: 30s
+    labels:
+      autoheal: "true"
     network_mode: "service:workspace"
     depends_on:
       - workspace
@@ -83,9 +93,28 @@ services:
     # Shares workspace's network namespace so tailnet peers reach workspace ports directly.
     # Kernel (TUN) mode keeps 127.0.0.1-bound listeners, including the gateway, off the tailnet.
     # Recreate this service whenever workspace is recreated.
+    # Self.Online tracks the control-plane long poll; tailscaled can stay up without it, so autoheal restarts it.
+    healthcheck:
+      test: ["CMD-SHELL", "tailscale status --json --peers=false | grep -q '\"Online\": true'"]
+      interval: 30s
+      timeout: 10s
+      retries: 4
+      start_period: 60s
+    labels:
+      autoheal: "true"
     network_mode: "service:workspace"
     depends_on:
       - workspace
+
+  # Compose never restarts unhealthy containers itself; this restarts those labelled autoheal=true.
+  # Restarting a sidecar also rejoins workspace's current network namespace.
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: sandbox-autoheal
+    restart: unless-stopped
+    network_mode: none
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   clickhouse:
     ports: !override []
