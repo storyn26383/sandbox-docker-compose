@@ -4,7 +4,7 @@
 // accepts only state reports from a `sandbox:*` source for a known agent, and strips the
 // fields that could run something on the host. Everything else is rejected before herdr.
 //
-// The agent keeps its real name (`omp`, `claude`) so herdr and Collie pick that agent's
+// The agent keeps its real name (`omp`) so herdr and Collie pick that agent's
 // screen grammar. The `sandbox:*` source keeps herdr from treating the report as its own
 // integration, so the session id is recorded for Collie but never drives a resume; the
 // patched herdr in ~/Coding/Sasaya/herdr (dev-env branch) is what records it.
@@ -28,7 +28,7 @@ const HERDR_SOCKET_PATH =
 const CONTAINER = process.env.HERDR_RELAY_CONTAINER || undefined;
 const STATE_PATH = process.env.HERDR_RELAY_STATE ?? path.join(import.meta.dir, ".data/herdr-relay-agents.json");
 const SANDBOX_SOURCE_PREFIX = "sandbox:";
-const ALLOWED_AGENTS: Record<string, true> = { omp: true, claude: true };
+const ALLOWED_AGENTS: Record<string, true> = { omp: true };
 const MAX_LINE_BYTES = 16 * 1024;
 const EVENTS_RETRY_MS = 5_000;
 

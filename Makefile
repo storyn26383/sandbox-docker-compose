@@ -8,7 +8,6 @@ HOST_GID := $(shell id -g)
 GIT_USER_NAME := $(shell git config --get user.name)
 GIT_USER_EMAIL := $(shell git config --get user.email)
 
-CLAUDE_JSON := .data/claude.json
 OMP_GATEWAY_DATA := .data/omp-gateway
 OMP_GATEWAY_CONFIG_DIRECTORY := /home/sandbox/.omp-gateway/config/omp-session-gateway
 OMP_GATEWAY_STATE_DIRECTORY := /home/sandbox/.omp-gateway/state
@@ -18,16 +17,12 @@ HERDR_RELAY_PORT := 47123
 # its agents are released when it stops; the name comes from docker-compose.yml
 HERDR_RELAY_CONTAINER := sandbox-workspace
 
-init: .env build $(CLAUDE_JSON) $(OMP_GATEWAY_DATA)
+init: .env build $(OMP_GATEWAY_DATA)
 	git submodule update --init --recursive
 	mkdir -p workspace
 
 .env:
 	cp .env.example .env
-
-$(CLAUDE_JSON):
-	mkdir -p $(@D)
-	echo {} > $@
 
 $(OMP_GATEWAY_DATA):
 	mkdir -p -m 700 $(OMP_GATEWAY_DATA)

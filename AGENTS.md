@@ -12,21 +12,19 @@ Same for commit messages, code comments (when actually needed), and anything pus
 
 ## Submodule discipline
 
-This repo has four submodules:
+This repo has three submodules:
 
 | Path | Remote | Purpose |
 |---|---|---|
 | `clickhouse/` | `git@github.com:storyn26383/golden-clickhouse.git` | ClickHouse service and config |
-| `claude/` | `git@github.com:storyn26383/.claude.git` | sasaya's personal Claude settings, mounted into the workspace container as `/home/sandbox/.claude` |
 | `omp/` | `git@github.com:storyn26383/.omp.git` | sasaya's personal omp settings, mounted into the workspace container as `/home/sandbox/.omp` |
 | `omp-session-gateway/` | `git@github.com:storyn26383/omp-session-gateway.git` | sasaya's fork of omp-session-gateway (Cloudflare Access mode), mounted into the workspace container as `/home/sandbox/omp-session-gateway` and run by supervisord |
 
-- **Don't edit any file inside a submodule from this sandbox** (including ClickHouse XML config, Claude skills/commands/settings, omp config, and omp-session-gateway source).
-- To change ClickHouse / Claude / omp / omp-session-gateway, `cd <submodule>`, commit and push from there, then come back to the sandbox and update the submodule pointer.
+- **Don't edit any file inside a submodule from this sandbox** (including ClickHouse XML config, omp config, and omp-session-gateway source).
+- To change ClickHouse / omp / omp-session-gateway, `cd <submodule>`, commit and push from there, then come back to the sandbox and update the submodule pointer.
 - `omp-session-gateway/` gets `node_modules/` and `apps/web/dist/` from `make init-omp-gateway`; both are ignored by the submodule's own `.gitignore`.
-- `claude/` goes dirty easily — claude-code inside the workspace container writes runtime state (`projects/`, `scheduled_tasks.json`, etc.) into the mount; those are handled by the `claude` submodule's own `.gitignore`. When you see dirty state, distinguish runtime artifacts (ignore) from real config edits (handle them).
 - `omp/` gets runtime state (sessions, logs, auth) written into `agent/` by omp inside the container; its own `agent/.gitignore` whitelists only `config.yml`, `mcp.json`, and `models.yml`.
-- After mounting, `claude/` is exposed inside the container as `/home/sandbox/.claude`, not `claude` (same for `omp/` → `/home/sandbox/.omp`) — the mount target name differs from the host path.
+- After mounting, `omp/` is exposed inside the container as `/home/sandbox/.omp`, not `omp` — the mount target name differs from the host path.
 
 ## Docker access is restricted
 
@@ -68,7 +66,6 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 - The workspace service loads the whole `.env` via `env_file: .env`, so every key reaches the container; adding a token only needs `.env.example` and `.env`, no compose edit.
 - `.env.example` is the single source of truth — when an env key changes, update both `.env.example` and `.env`.
 - Defaults are tuned for casual local use (`root` / `default`); don't suggest making them "production-grade".
-- `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` are loaded from `.env` into the workspace container for claude-code. **Don't suggest using OAuth flow** — this is intentionally designed around token + proxy URL, login isn't needed.
 - `GH_TOKEN` is forwarded from `.env` into the workspace container for GitHub CLI. Prefer this non-interactive token path over `gh auth login`.
 - `FRONTEND_GATEWAY_API_KEY` / `BACKEND_GATEWAY_API_KEY` are the keys omp's `omp/agent/models.yml` `frontend-gateway` / `backend-gateway` providers read (`apiKey: …`); keep the names in sync with that file.
 - `CLOUDFLARE_TUNNEL_TOKEN` is mapped to `TUNNEL_TOKEN` for the `cloudflared` service (a remotely-managed tunnel; the token already carries the tunnel ID). Routes are configured in the Cloudflare dashboard only — don't add a local `config.yml` or credentials JSON. `cloudflared` uses `network_mode: "service:workspace"` because omp-session-gateway refuses non-loopback peers, so route targets are `http://localhost:<port>` (the gateway is `http://localhost:4317`) and `cloudflared` must be recreated whenever `workspace` is. Don't route DB services.

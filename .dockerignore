@@ -8,6 +8,5 @@
 docker-compose.yml
 .data
 clickhouse
-claude
 *.md
 Makefile

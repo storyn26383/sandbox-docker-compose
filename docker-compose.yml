@@ -20,8 +20,6 @@ services:
       # Where agents report state to herdr; the host side is herdr-relay.ts, started by `make start`
       HERDR_RELAY_ADDRESS: host.docker.internal:${HERDR_RELAY_PORT:-47123}
     volumes:
-      - ./claude:/home/sandbox/.claude
-      - ./.data/claude.json:/home/sandbox/.claude.json
       - ./omp:/home/sandbox/.omp
       - ./workspace:/home/sandbox/workspace
       - ./omp-session-gateway:/home/sandbox/omp-session-gateway

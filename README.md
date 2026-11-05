@@ -2,7 +2,7 @@
 
 自己嘅開發沙盒，一個容器入面塞晒平時用嘅工具，再夾埋 MySQL / ClickHouse / Redis 三個 DB，方便試嘢、寫 demo、玩新 library 嗰陣唔使污染本機。
 
-ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。Claude 個人設定（skills / commands / settings）就用 [`storyn26383/.claude`](https://github.com/storyn26383/.claude) submodule 落到 `claude/`，再 mount 入 workspace container 做 `/home/sandbox/.claude`。omp 設定都係咁，用 [`storyn26383/.omp`](https://github.com/storyn26383/.omp) submodule 落到 `omp/`，mount 做 `/home/sandbox/.omp`。omp-session-gateway 用 [`storyn26383/omp-session-gateway`](https://github.com/storyn26383/omp-session-gateway) submodule 落到 `omp-session-gateway/`，mount 做 `/home/sandbox/omp-session-gateway`。
+ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。omp 設定（skills / commands / settings）就用 [`storyn26383/.omp`](https://github.com/storyn26383/.omp) submodule 落到 `omp/`，再 mount 入 workspace container 做 `/home/sandbox/.omp`。omp-session-gateway 用 [`storyn26383/omp-session-gateway`](https://github.com/storyn26383/omp-session-gateway) submodule 落到 `omp-session-gateway/`，mount 做 `/home/sandbox/omp-session-gateway`。
 
 ## 入面有咩 📦
 
@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Rust 1.89.0、Flutter 3.44.1、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | claude-code、omp、openspec、ccusage、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | omp、openspec、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
 | 🦀 App 開發 | melos、flutter_rust_bridge_codegen、cargo-audit、protoc 26.1 |
 | 📝 編輯器 | Neovim（`nvim`），`VISUAL` / `EDITOR` 預設用佢 |
 | 🌐 瀏覽器 | chromium（headless） |
@@ -80,17 +80,6 @@ make init-omp-gateway  # 裝 / build omp-session-gateway、由 .env 生成 confi
 `make init` 會幫你預先 `mkdir` 好個目錄。Host 上面用任何 IDE 直接 edit `./workspace/...`，容器內即時見到（`make shell` 入去就喺 `~/workspace`）。`./workspace/` 已經 `.gitignore`，唔會污染 repo。
 
 因為 sandbox 用戶 UID/GID 跟住 host 一樣，permission 自動匹配，host 同容器寫嘅檔案兩邊都當係你本機 user 擁有。`git` 嘅 user.name / user.email 喺 `make build` 嗰陣由 Makefile 從 host `git config` 攞返，build 入 image，commit 即用即得。
-
-## Claude Code 嘅認證 🔐
-
-唔行 OAuth flow，靠 env var 直接通：
-
-```env
-ANTHROPIC_AUTH_TOKEN=你個 token
-ANTHROPIC_BASE_URL=你個 proxy / gateway URL
-```
-
-寫入 `.env`（已 gitignore），`make start` 之後 `docker-compose.yml` 會自動 forward 入 workspace container，`claude` 啟動時直接攞嚟用，唔使再 login。
 
 💡 workspace container 用 `env_file: .env` load 成個 `.env`，所以 `.env` 入面每條 key 都會入 container，加新 token 唔使改 `docker-compose.yml`。
 
@@ -247,22 +236,21 @@ Compose 唔會 restart unhealthy 嘅 container，所以加咗 [`willfarrell/auto
 
 ## herdr 🐑
 
-喺 [herdr](https://herdr.dev) 入面 `make shell` 再開 `omp` / `claude`，sidebar、通知同 Collie 都見到佢哋嘅 `working` / `blocked` / `idle`，名同 host 嘅一樣係 `omp` / `claude`（分唔到係刻意，Collie 要真名先會用嗰個 agent 嘅畫面規則）。
+喺 [herdr](https://herdr.dev) 入面 `make shell` 再開 `omp`，sidebar、通知同 Collie 都見到佢嘅 `working` / `blocked` / `idle`，名同 host 嘅一樣係 `omp`（分唔到係刻意，Collie 要真名先會用嗰個 agent 嘅畫面規則）。
 
 點運作：
 
-- herdr 喺 pane 只見到 `docker exec`，認唔到入面嘅 agent，所以由 agent 自己報狀態：`claude/hooks/herdr-state.ts` 同 `omp/agent/extensions/herdr-state.ts`（host 同 sandbox 共用，有 `HERDR_RELAY_ADDRESS` 就行 sandbox 模式）
+- herdr 喺 pane 只見到 `docker exec`，認唔到入面嘅 agent，所以由 agent 自己報狀態：`omp/agent/extensions/herdr-state.ts`（host 同 sandbox 共用，有 `HERDR_RELAY_ADDRESS` 就行 sandbox 模式）
 - OrbStack 唔傳得 macOS 嘅 Unix socket 入容器，所以 `make start` 會喺 host 起 `herdr-relay.ts`（`127.0.0.1:47123`），容器經 `host.docker.internal` 連返去
 - `docker-compose.yml` 幫 workspace 設定 `HERDR_RELAY_ADDRESS`（port 跟 Makefile 嘅 `HERDR_RELAY_PORT`）；`make shell` 再將 `HERDR_ENV` / `HERDR_PANE_ID` 傳入容器，因為呢兩個係你喺邊個 herdr pane 行 `make shell` 先知，喺 herdr 以外行就唔會有
 - container 重開或者 agent crash 時，agent 嚟唔切報 release，而 herdr 自己睇唔到 container 入面，會一直當 agent 仲喺度。所以 relay 會記低轉發過嘅 agent（`.data/herdr-relay-agents.json`），收到 `HERDR_RELAY_CONTAINER`（Makefile 設做 `sandbox-workspace`）嘅 docker `die` event 就代佢哋 release；relay 啟動時如果發現 container 喺佢停咗嗰陣重開過，都會 release
 
-⚠️ herdr socket 可以喺任何 pane 打字、喺 host 行 command，所以 relay 只放行 source 係 `sandbox:*`、agent 係 `omp` / `claude` 嘅狀態報告，剷走 `resume_argv` 同 `agent_session_path`，其他 request 一律 `relay_rejected`。唔好改做直接轉發。
+⚠️ herdr socket 可以喺任何 pane 打字、喺 host 行 command，所以 relay 只放行 source 係 `sandbox:*`、agent 係 `omp` 嘅狀態報告，剷走 `resume_argv` 同 `agent_session_path`，其他 request 一律 `relay_rejected`。唔好改做直接轉發。
 
 限制：
 
 - sandbox 入面嘅 agent herdr 重啟後唔會自動 resume（係刻意嘅：`sandbox:*` session 只記 id，唔會喺 host 行 resume）
-- Collie 要用 `~/Coding/Sasaya/herdr`（`dev-env` branch）build 出嚟嘅 herdr，先會記低 `sandbox:*` 嘅 session id；官方 herdr 只記 `herdr:*`。另外 `~/.config/collie/.env` 嘅 `COLLIE_PI_ROOT` / `COLLIE_TRANSCRIPT_ROOT` 要包埋 `omp/agent/sessions` 同 `claude/projects`，Collie 先搵到 sandbox 嘅 transcript
-- Claude 彈 approval 撳 Esc 取消，會停喺 `blocked` 直到下一句輸入
+- Collie 要用 `~/Coding/Sasaya/herdr`（`dev-env` branch）build 出嚟嘅 herdr，先會記低 `sandbox:*` 嘅 session id；官方 herdr 只記 `herdr:*`。另外 `~/.config/collie/.env` 嘅 `COLLIE_PI_ROOT` 要包埋 `omp/agent/sessions`，Collie 先搵到 sandbox 嘅 transcript
 - relay log 喺 `.data/herdr-relay.log`；relay 死咗就 `make stop && make start`
 
 ## 連 DB 🔌
@@ -284,14 +272,13 @@ curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
 sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
-├── .env / .env.example         # ClickHouse / MySQL credentials + Claude / gh / glab / Sentry / Slack / Notion / ClickUp / Cloudflare Tunnel / Tailscale token + omp-session-gateway 設定
+├── .env / .env.example         # ClickHouse / MySQL credentials + omp gateway / gh / glab / Sentry / Slack / Notion / ClickUp / Cloudflare Tunnel / Tailscale token + omp-session-gateway 設定
 ├── Makefile                    # 全部 make 指令
 ├── herdr-relay.ts              # make start 喺 host 起嘅 herdr relay，只放行 sandbox agent 狀態報告；container 停咗就代 agent release
 ├── Dockerfile                  # workspace 容器點 build
 ├── supervisor/                 # omp-session-gateway 嘅 supervisord program（build 入 image）+ 由 .env 生成 gateway config.json 嘅 jq template
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
-├── .data/                      # MySQL / Redis 資料 + Claude Code 狀態 + omp-session-gateway config / state bind mount 落呢度（gitignore）
-├── claude/                     # submodule，sasaya 個人 Claude 設定，mount 入容器做 /home/sandbox/.claude
+├── .data/                      # MySQL / Redis 資料 + omp-session-gateway config / state bind mount 落呢度（gitignore）
 ├── omp/                        # submodule，sasaya 個人 omp 設定，mount 入容器做 /home/sandbox/.omp
 ├── omp-session-gateway/        # submodule（storyn26383/omp-session-gateway），mount 入容器做 /home/sandbox/omp-session-gateway
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
