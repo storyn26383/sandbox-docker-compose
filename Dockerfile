@@ -1,4 +1,134 @@
-FROM phpswoole/swoole:6.3-php8.4
+ARG BASE_IMAGE=phpswoole/swoole:6.3-php8.4
+ARG UID=1000
+ARG GID=1000
+ARG USERNAME=sandbox
+
+# ==============================================================================
+# Toolchain stages (built in parallel; apt or CLI changes in the main image don't rebuild them)
+# ==============================================================================
+# Rust and Flutter build as the sandbox user so paths, $HOME and file owners match the final image.
+FROM ${BASE_IMAGE} AS toolchain-user
+ARG UID
+ARG GID
+ARG USERNAME
+
+RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
+    && useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USERNAME}
+
+# ==============================================================================
+# Rust (stage)
+# ==============================================================================
+FROM toolchain-user AS rust
+ARG USERNAME
+ARG RUST_VERSION=1.89.0
+ARG FLUTTER_RUST_BRIDGE_CODEGEN_VERSION=2.13.0-beta.2
+ARG CARGO_AUDIT_VERSION=0.22.2
+ENV PATH=/home/${USERNAME}/.cargo/bin:${PATH}
+
+USER ${USERNAME}
+
+# Targets mirror openim-app's rust-toolchain.toml; rustup installs any missing ones on first cargo run anyway
+RUN set -eux; \
+    curl --proto '=https' --tlsv1.2 --fail --show-error --silent https://sh.rustup.rs \
+        | sh -s -- -y --no-modify-path --profile minimal --default-toolchain "${RUST_VERSION}" \
+            --component clippy --component rustfmt; \
+    rustup target add \
+        x86_64-unknown-linux-gnu \
+        aarch64-apple-darwin x86_64-apple-darwin \
+        aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios \
+        aarch64-linux-android armv7-linux-androideabi x86_64-linux-android \
+        x86_64-pc-windows-msvc; \
+    rustc --version
+
+RUN set -eux; \
+    cargo install --locked flutter_rust_bridge_codegen --version "${FLUTTER_RUST_BRIDGE_CODEGEN_VERSION}"; \
+    cargo install --locked cargo-audit --version "${CARGO_AUDIT_VERSION}"; \
+    rm -rf "${HOME}/.cargo/registry" "${HOME}/.cargo/git"; \
+    flutter_rust_bridge_codegen --version; \
+    cargo audit --version
+
+# ==============================================================================
+# Flutter and melos (stage)
+# ==============================================================================
+FROM toolchain-user AS flutter
+ARG USERNAME
+ARG FLUTTER_VERSION=3.44.1
+ARG FLUTTER_HOME=/home/${USERNAME}/flutter
+ARG MELOS_VERSION=7.8.0
+ENV PATH=${FLUTTER_HOME}/bin:/home/${USERNAME}/.pub-cache/bin:${PATH}
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+USER ${USERNAME}
+
+RUN set -eux; \
+    git clone --depth 1 --branch "${FLUTTER_VERSION}" https://github.com/flutter/flutter.git "${FLUTTER_HOME}"; \
+    flutter config --no-analytics; \
+    dart --disable-analytics; \
+    flutter precache --linux --no-android --no-ios --no-web --no-macos --no-windows --no-fuchsia; \
+    dart pub global activate melos "${MELOS_VERSION}"; \
+    melos --version
+
+# ==============================================================================
+# Go (stage)
+# ==============================================================================
+FROM ${BASE_IMAGE} AS go
+ARG GO_VERSION=1.26.5
+
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) \
+            go_archive="go${GO_VERSION}.linux-amd64.tar.gz"; \
+            go_checksum="5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053"; \
+            ;; \
+        arm64) \
+            go_archive="go${GO_VERSION}.linux-arm64.tar.gz"; \
+            go_checksum="fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49"; \
+            ;; \
+        *) \
+            echo "Unsupported Go architecture: $(dpkg --print-architecture)" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    curl --fail --location --show-error --silent "https://go.dev/dl/${go_archive}" --output "/tmp/${go_archive}"; \
+    echo "${go_checksum}  /tmp/${go_archive}" | sha256sum --check; \
+    tar -C /usr/local -xzf "/tmp/${go_archive}"; \
+    rm "/tmp/${go_archive}"; \
+    /usr/local/go/bin/go version
+
+# ==============================================================================
+# protoc (stage)
+# ==============================================================================
+FROM ${BASE_IMAGE} AS protoc
+ARG PROTOC_VERSION=26.1
+
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) \
+            protoc_archive="protoc-${PROTOC_VERSION}-linux-x86_64.zip"; \
+            protoc_checksum="a7be2928c0454f132c599e25b79b7ad1b57663f2337d7f7e468a1d59b98ec1b0"; \
+            ;; \
+        arm64) \
+            protoc_archive="protoc-${PROTOC_VERSION}-linux-aarch_64.zip"; \
+            protoc_checksum="64a3b3b5f7dac0c8f9cf1cb85b2b1a237eb628644f6bcb0fb8f23db6e0d66181"; \
+            ;; \
+        *) \
+            echo "Unsupported protoc architecture: $(dpkg --print-architecture)" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    curl --fail --location --show-error --silent "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${protoc_archive}" --output "/tmp/${protoc_archive}"; \
+    echo "${protoc_checksum}  /tmp/${protoc_archive}" | sha256sum --check; \
+    unzip -q "/tmp/${protoc_archive}" 'bin/protoc' 'include/*' -d /opt/protoc; \
+    rm "/tmp/${protoc_archive}"; \
+    /opt/protoc/bin/protoc --version
+
+# ==============================================================================
+# Workspace image (rarely changed layers first, frequently bumped ones last)
+# ==============================================================================
+FROM ${BASE_IMAGE} AS workspace
 
 # ==============================================================================
 # Base build environment
@@ -54,120 +184,81 @@ RUN set -eux; \
     git --version
 
 # ==============================================================================
+# PHP: Composer, extensions, and Swoole config
+# ==============================================================================
+RUN curl -sS https://getcomposer.org/installer \
+    | php -- --install-dir=/usr/local/bin --filename=composer
+
+RUN docker-php-ext-configure gd --with-jpeg \
+    && docker-php-ext-install bcmath gd intl pcntl zip \
+    && pecl install decimal-2.0.1 \
+    && docker-php-ext-enable decimal \
+    && echo 'swoole.use_shortname=Off' > "${PHP_INI_DIR}/conf.d/zz-swoole.ini" \
+    && rm -rf /tmp/pear
+
+# ==============================================================================
 # Sandbox user
 # ==============================================================================
-ARG UID=1000
-ARG GID=1000
-ARG USERNAME=sandbox
-ARG GIT_USER_NAME=
-ARG GIT_USER_EMAIL=
+ARG UID
+ARG GID
+ARG USERNAME
 
 RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USERNAME} \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
     && echo 'umask 022' >> /home/${USERNAME}/.bashrc \
     && echo 'eval "$(direnv hook bash)"' >> /home/${USERNAME}/.bashrc \
-    && printf '[user]\n\tname = %s\n\temail = %s\n[core]\n\texcludesfile = /home/%s/.gitignore_global\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" "${USERNAME}" > /home/${USERNAME}/.gitconfig \
-    && printf '.envrc\n' > /home/${USERNAME}/.gitignore_global \
     && printf '[client]\nssl=0\n' > /home/${USERNAME}/.my.cnf \
-    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.gitconfig /home/${USERNAME}/.gitignore_global /home/${USERNAME}/.my.cnf
+    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.my.cnf
 
 # ==============================================================================
-# Node.js and global CLI tools
+# Rust (from the rust stage)
 # ==============================================================================
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install -g @fission-ai/openspec \
-    && npm cache clean --force \
-    && rm -rf /var/lib/apt/lists/*
+ENV PATH=/home/${USERNAME}/.cargo/bin:${PATH}
+COPY --from=rust --chown=${UID}:${GID} /home/${USERNAME}/.rustup /home/${USERNAME}/.rustup
+COPY --from=rust --chown=${UID}:${GID} /home/${USERNAME}/.cargo /home/${USERNAME}/.cargo
 
 # ==============================================================================
-# Bun and omp
+# Flutter and melos (from the flutter stage)
 # ==============================================================================
-ARG OMP_VERSION=18.18.6
-ENV BUN_INSTALL=/usr/local
-RUN curl -fsSL https://bun.sh/install | bash \
-    && bun install -g @oh-my-pi/pi-coding-agent@${OMP_VERSION} \
-    && bun pm cache rm \
-    && omp --version
+ARG FLUTTER_HOME=/home/${USERNAME}/flutter
+ENV PATH=${FLUTTER_HOME}/bin:/home/${USERNAME}/.pub-cache/bin:${PATH} \
+    MELOS_SDK_PATH=${FLUTTER_HOME}
+COPY --from=flutter --chown=${UID}:${GID} /home/${USERNAME}/flutter ${FLUTTER_HOME}
+COPY --from=flutter --chown=${UID}:${GID} /home/${USERNAME}/.pub-cache /home/${USERNAME}/.pub-cache
+# flutter config / dart --disable-analytics state lives in $HOME
+COPY --from=flutter --chown=${UID}:${GID} /home/${USERNAME}/.config/flutter /home/${USERNAME}/.config/flutter
+COPY --from=flutter --chown=${UID}:${GID} /home/${USERNAME}/.dart-tool /home/${USERNAME}/.dart-tool
+COPY --from=flutter --chown=${UID}:${GID} /home/${USERNAME}/.flutter /home/${USERNAME}/.flutter
 
 # ==============================================================================
-# Go
+# Go (from the go stage)
 # ==============================================================================
-ARG GO_VERSION=1.26.5
 ENV PATH=/usr/local/go/bin:${PATH}
-
-RUN set -eux; \
-    case "$(dpkg --print-architecture)" in \
-        amd64) \
-            go_archive="go${GO_VERSION}.linux-amd64.tar.gz"; \
-            go_checksum="5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053"; \
-            ;; \
-        arm64) \
-            go_archive="go${GO_VERSION}.linux-arm64.tar.gz"; \
-            go_checksum="fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49"; \
-            ;; \
-        *) \
-            echo "Unsupported Go architecture: $(dpkg --print-architecture)" >&2; \
-            exit 1; \
-            ;; \
-    esac; \
-    curl --fail --location --show-error --silent "https://go.dev/dl/${go_archive}" --output "/tmp/${go_archive}"; \
-    echo "${go_checksum}  /tmp/${go_archive}" | sha256sum --check; \
-    tar -C /usr/local -xzf "/tmp/${go_archive}"; \
-    rm "/tmp/${go_archive}"; \
-    go version
+COPY --from=go /usr/local/go /usr/local/go
 
 # ==============================================================================
-# rtk (Rust Token Killer)
+# protoc (from the protoc stage)
 # ==============================================================================
-ARG RTK_VERSION=1.1.0
-
-RUN set -eux; \
-    case "$(dpkg --print-architecture)" in \
-        amd64) \
-            rtk_archive="rtk-x86_64-unknown-linux-musl.tar.gz"; \
-            rtk_checksum="9454ad1b9489daa57ab0a9f4ebe2faaf4dc82b8a0f26c9e5135151abd7c9378d"; \
-            ;; \
-        arm64) \
-            rtk_archive="rtk-aarch64-unknown-linux-gnu.tar.gz"; \
-            rtk_checksum="a5c00c3ab0129884bcb757d348afc1a650efa0f4f0769da97c341f28f89719ed"; \
-            ;; \
-        *) \
-            echo "Unsupported rtk architecture: $(dpkg --print-architecture)" >&2; \
-            exit 1; \
-            ;; \
-    esac; \
-    curl --fail --location --show-error --silent "https://github.com/rtk-ai/rtk/releases/download/v${RTK_VERSION}/${rtk_archive}" --output "/tmp/${rtk_archive}"; \
-    echo "${rtk_checksum}  /tmp/${rtk_archive}" | sha256sum --check; \
-    tar -C /usr/local/bin -xzf "/tmp/${rtk_archive}" rtk; \
-    rm "/tmp/${rtk_archive}"; \
-    rtk --version
+COPY --from=protoc /opt/protoc/bin/protoc /usr/local/bin/protoc
+COPY --from=protoc /opt/protoc/include /usr/local/include
 
 # ==============================================================================
-# glab (GitLab CLI)
+# Sandbox git identity (after the toolchains so a host git config change doesn't recopy them)
 # ==============================================================================
-ARG GLAB_VERSION=1.116.0
+ARG GIT_USER_NAME=
+ARG GIT_USER_EMAIL=
 
-RUN set -eux; \
-    case "$(dpkg --print-architecture)" in \
-        amd64) \
-            glab_checksum="173cc61ea94c562f2ccd831f320d25b73982192e82810064552282482e3713ea"; \
-            ;; \
-        arm64) \
-            glab_checksum="3e59a0c5db5b281c552543cc1018873ecdd551b07737cfdb932c6543aa39d88c"; \
-            ;; \
-        *) \
-            echo "Unsupported glab architecture: $(dpkg --print-architecture)" >&2; \
-            exit 1; \
-            ;; \
-    esac; \
-    glab_archive="glab_${GLAB_VERSION}_linux_$(dpkg --print-architecture).tar.gz"; \
-    curl --fail --location --show-error --silent "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/${GLAB_VERSION}/${glab_archive}" --output "/tmp/${glab_archive}"; \
-    echo "${glab_checksum}  /tmp/${glab_archive}" | sha256sum --check; \
-    tar -C /usr/local -xzf "/tmp/${glab_archive}" bin/glab; \
-    rm "/tmp/${glab_archive}"; \
-    glab --version
+RUN printf '[user]\n\tname = %s\n\temail = %s\n[core]\n\texcludesfile = /home/%s/.gitignore_global\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" "${USERNAME}" > /home/${USERNAME}/.gitconfig \
+    && printf '.envrc\n' > /home/${USERNAME}/.gitignore_global \
+    && chown ${UID}:${GID} /home/${USERNAME}/.gitconfig /home/${USERNAME}/.gitignore_global
+
+# ==============================================================================
+# omp-session-gateway (supervisord)
+# ==============================================================================
+# The base entrypoint copies task.d/*.conf into conf.d and runs supervisord beside the CMD.
+# The program serves the omp-session-gateway submodule prepared by `make init-omp-gateway`.
+COPY supervisor/omp-gateway.conf /etc/supervisor/task.d/omp-gateway.conf
 
 # ==============================================================================
 # sentry-cli
@@ -220,103 +311,74 @@ RUN set -eux; \
     slack version
 
 # ==============================================================================
-# protoc
+# glab (GitLab CLI)
 # ==============================================================================
-ARG PROTOC_VERSION=26.1
+ARG GLAB_VERSION=1.116.0
 
 RUN set -eux; \
     case "$(dpkg --print-architecture)" in \
         amd64) \
-            protoc_archive="protoc-${PROTOC_VERSION}-linux-x86_64.zip"; \
-            protoc_checksum="a7be2928c0454f132c599e25b79b7ad1b57663f2337d7f7e468a1d59b98ec1b0"; \
+            glab_checksum="173cc61ea94c562f2ccd831f320d25b73982192e82810064552282482e3713ea"; \
             ;; \
         arm64) \
-            protoc_archive="protoc-${PROTOC_VERSION}-linux-aarch_64.zip"; \
-            protoc_checksum="64a3b3b5f7dac0c8f9cf1cb85b2b1a237eb628644f6bcb0fb8f23db6e0d66181"; \
+            glab_checksum="3e59a0c5db5b281c552543cc1018873ecdd551b07737cfdb932c6543aa39d88c"; \
             ;; \
         *) \
-            echo "Unsupported protoc architecture: $(dpkg --print-architecture)" >&2; \
+            echo "Unsupported glab architecture: $(dpkg --print-architecture)" >&2; \
             exit 1; \
             ;; \
     esac; \
-    curl --fail --location --show-error --silent "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${protoc_archive}" --output "/tmp/${protoc_archive}"; \
-    echo "${protoc_checksum}  /tmp/${protoc_archive}" | sha256sum --check; \
-    unzip -q "/tmp/${protoc_archive}" 'bin/protoc' 'include/*' -d /usr/local; \
-    rm "/tmp/${protoc_archive}"; \
-    protoc --version
+    glab_archive="glab_${GLAB_VERSION}_linux_$(dpkg --print-architecture).tar.gz"; \
+    curl --fail --location --show-error --silent "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/${GLAB_VERSION}/${glab_archive}" --output "/tmp/${glab_archive}"; \
+    echo "${glab_checksum}  /tmp/${glab_archive}" | sha256sum --check; \
+    tar -C /usr/local -xzf "/tmp/${glab_archive}" bin/glab; \
+    rm "/tmp/${glab_archive}"; \
+    glab --version
 
 # ==============================================================================
-# Rust
+# rtk (Rust Token Killer)
 # ==============================================================================
-ARG RUST_VERSION=1.89.0
-ARG FLUTTER_RUST_BRIDGE_CODEGEN_VERSION=2.13.0-beta.2
-ARG CARGO_AUDIT_VERSION=0.22.2
-ENV PATH=/home/${USERNAME}/.cargo/bin:${PATH}
-
-USER ${USERNAME}
-
-# Targets mirror openim-app's rust-toolchain.toml; rustup installs any missing ones on first cargo run anyway
-RUN set -eux; \
-    curl --proto '=https' --tlsv1.2 --fail --show-error --silent https://sh.rustup.rs \
-        | sh -s -- -y --no-modify-path --profile minimal --default-toolchain "${RUST_VERSION}" \
-            --component clippy --component rustfmt; \
-    rustup target add \
-        x86_64-unknown-linux-gnu \
-        aarch64-apple-darwin x86_64-apple-darwin \
-        aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios \
-        aarch64-linux-android armv7-linux-androideabi x86_64-linux-android \
-        x86_64-pc-windows-msvc; \
-    rustc --version
+ARG RTK_VERSION=1.1.0
 
 RUN set -eux; \
-    cargo install --locked flutter_rust_bridge_codegen --version "${FLUTTER_RUST_BRIDGE_CODEGEN_VERSION}"; \
-    cargo install --locked cargo-audit --version "${CARGO_AUDIT_VERSION}"; \
-    rm -rf "${HOME}/.cargo/registry" "${HOME}/.cargo/git"; \
-    flutter_rust_bridge_codegen --version; \
-    cargo audit --version
-
-USER root
-
-# ==============================================================================
-# Flutter and melos
-# ==============================================================================
-ARG FLUTTER_VERSION=3.44.1
-ARG FLUTTER_HOME=/home/${USERNAME}/flutter
-ARG MELOS_VERSION=7.8.0
-ENV PATH=${FLUTTER_HOME}/bin:/home/${USERNAME}/.pub-cache/bin:${PATH} \
-    MELOS_SDK_PATH=${FLUTTER_HOME}
-
-USER ${USERNAME}
-
-RUN set -eux; \
-    git clone --depth 1 --branch "${FLUTTER_VERSION}" https://github.com/flutter/flutter.git "${FLUTTER_HOME}"; \
-    flutter config --no-analytics; \
-    dart --disable-analytics; \
-    flutter precache --linux --no-android --no-ios --no-web --no-macos --no-windows --no-fuchsia; \
-    dart pub global activate melos "${MELOS_VERSION}"; \
-    melos --version
-
-USER root
+    case "$(dpkg --print-architecture)" in \
+        amd64) \
+            rtk_archive="rtk-x86_64-unknown-linux-musl.tar.gz"; \
+            rtk_checksum="9454ad1b9489daa57ab0a9f4ebe2faaf4dc82b8a0f26c9e5135151abd7c9378d"; \
+            ;; \
+        arm64) \
+            rtk_archive="rtk-aarch64-unknown-linux-gnu.tar.gz"; \
+            rtk_checksum="a5c00c3ab0129884bcb757d348afc1a650efa0f4f0769da97c341f28f89719ed"; \
+            ;; \
+        *) \
+            echo "Unsupported rtk architecture: $(dpkg --print-architecture)" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    curl --fail --location --show-error --silent "https://github.com/rtk-ai/rtk/releases/download/v${RTK_VERSION}/${rtk_archive}" --output "/tmp/${rtk_archive}"; \
+    echo "${rtk_checksum}  /tmp/${rtk_archive}" | sha256sum --check; \
+    tar -C /usr/local/bin -xzf "/tmp/${rtk_archive}" rtk; \
+    rm "/tmp/${rtk_archive}"; \
+    rtk --version
 
 # ==============================================================================
-# omp-session-gateway (supervisord)
+# Node.js and global CLI tools
 # ==============================================================================
-# The base entrypoint copies task.d/*.conf into conf.d and runs supervisord beside the CMD.
-# The program serves the omp-session-gateway submodule prepared by `make init-omp-gateway`.
-COPY supervisor/omp-gateway.conf /etc/supervisor/task.d/omp-gateway.conf
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g @fission-ai/openspec \
+    && npm cache clean --force \
+    && rm -rf /var/lib/apt/lists/*
 
 # ==============================================================================
-# PHP: Composer, extensions, and Swoole config
+# Bun and omp
 # ==============================================================================
-RUN curl -sS https://getcomposer.org/installer \
-    | php -- --install-dir=/usr/local/bin --filename=composer
-
-RUN docker-php-ext-configure gd --with-jpeg \
-    && docker-php-ext-install bcmath gd intl pcntl zip \
-    && pecl install decimal-2.0.1 \
-    && docker-php-ext-enable decimal \
-    && echo 'swoole.use_shortname=Off' > "${PHP_INI_DIR}/conf.d/zz-swoole.ini" \
-    && rm -rf /tmp/pear
+ARG OMP_VERSION=18.18.6
+ENV BUN_INSTALL=/usr/local
+RUN curl -fsSL https://bun.sh/install | bash \
+    && bun install -g @oh-my-pi/pi-coding-agent@${OMP_VERSION} \
+    && bun pm cache rm \
+    && omp --version
 
 WORKDIR /home/sandbox/workspace
 CMD ["sleep", "infinity"]
