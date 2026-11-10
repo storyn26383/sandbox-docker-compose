@@ -84,9 +84,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 # ==============================================================================
 # Bun and omp
 # ==============================================================================
+ARG OMP_VERSION=18.18.6
 ENV BUN_INSTALL=/usr/local
 RUN curl -fsSL https://bun.sh/install | bash \
-    && bun install -g @oh-my-pi/pi-coding-agent \
+    && bun install -g @oh-my-pi/pi-coding-agent@${OMP_VERSION} \
     && bun pm cache rm \
     && omp --version
 
