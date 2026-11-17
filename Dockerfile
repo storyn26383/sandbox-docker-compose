@@ -148,14 +148,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && wget -nv -O /etc/apt/keyrings/githubcli-archive-keyring.gpg https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
-    && wget -nv -O /etc/apt/keyrings/cloudflare-main.gpg https://pkg.cloudflare.com/cloudflare-main.gpg \
-    && chmod go+r /etc/apt/keyrings/cloudflare-main.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" > /etc/apt/sources.list.d/cloudflared.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         neovim sudo unzip zip xz-utils \
         clang cmake ninja-build pkg-config \
-        gh cloudflared jq ripgrep fzf htop direnv \
+        gh jq ripgrep fzf htop direnv \
         chromium \
         iputils-ping dnsutils netcat-openbsd \
         locales tzdata \
@@ -252,13 +249,6 @@ ARG GIT_USER_EMAIL=
 RUN printf '[user]\n\tname = %s\n\temail = %s\n[core]\n\texcludesfile = /home/%s/.gitignore_global\n' "${GIT_USER_NAME}" "${GIT_USER_EMAIL}" "${USERNAME}" > /home/${USERNAME}/.gitconfig \
     && printf '.envrc\n' > /home/${USERNAME}/.gitignore_global \
     && chown ${UID}:${GID} /home/${USERNAME}/.gitconfig /home/${USERNAME}/.gitignore_global
-
-# ==============================================================================
-# omp-session-gateway (supervisord)
-# ==============================================================================
-# The base entrypoint copies task.d/*.conf into conf.d and runs supervisord beside the CMD.
-# The program serves the omp-session-gateway submodule prepared by `make init-omp-gateway`.
-COPY supervisor/omp-gateway.conf /etc/supervisor/task.d/omp-gateway.conf
 
 # ==============================================================================
 # sentry-cli

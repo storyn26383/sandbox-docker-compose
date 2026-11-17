@@ -2,7 +2,7 @@
 
 自己嘅開發沙盒，一個容器入面塞晒平時用嘅工具，再夾埋 MySQL / ClickHouse / Redis 三個 DB，方便試嘢、寫 demo、玩新 library 嗰陣唔使污染本機。
 
-ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。omp 設定（skills / commands / settings）就用 [`storyn26383/.omp`](https://github.com/storyn26383/.omp) submodule 落到 `omp/`，再 mount 入 workspace container 做 `/home/sandbox/.omp`。omp-session-gateway 用 [`storyn26383/omp-session-gateway`](https://github.com/storyn26383/omp-session-gateway) submodule 落到 `omp-session-gateway/`，mount 做 `/home/sandbox/omp-session-gateway`。
+ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https://github.com/storyn26383/golden-clickhouse) 落到 `clickhouse/`，一齊跑，唔使重複維護。omp 設定（skills / commands / settings）就用 [`storyn26383/.omp`](https://github.com/storyn26383/.omp) submodule 落到 `omp/`，再 mount 入 workspace container 做 `/home/sandbox/.omp`。
 
 ## 入面有咩 📦
 
@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Rust 1.89.0、Flutter 3.44.1、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | omp、openspec、rtk、gh、glab、sentry-cli、slack、cloudflared、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | omp、openspec、rtk、gh、glab、sentry-cli、slack、jq、ripgrep、fzf、htop、direnv |
 | 🦀 App 開發 | melos、flutter_rust_bridge_codegen、cargo-audit、protoc 26.1 |
 | 📝 編輯器 | Neovim（`nvim`），`VISUAL` / `EDITOR` 預設用佢 |
 | 🌐 瀏覽器 | chromium（headless） |
@@ -66,7 +66,6 @@ make restart    # 重啟
 make shell      # docker exec 入 workspace container（pwd ~/workspace）
 make logs       # tail 晒所有 log
 make reset-db   # 一鍵清晒 DB data（ClickHouse / MySQL / Redis）
-make init-omp-gateway  # 裝 / build omp-session-gateway、由 .env 生成 config、重啟 gateway
 ```
 
 ## Workspace 📂
@@ -153,57 +152,12 @@ SLACK_USER_TOKEN=xoxp-你個 Slack user token
 
 ⚠️ `slack api` 揀 token 嘅次序係 `--token` → `--app` → `SLACK_BOT_TOKEN` → `SLACK_USER_TOKEN`，即係如果有 `SLACK_BOT_TOKEN`，會蓋過呢條 read-only token。
 
-## omp-session-gateway + Cloudflare Tunnel 🌐
-
-主要用途係經 Cloudflare Tunnel + Access 由外面用 [omp-session-gateway](https://github.com/storyn26383/omp-session-gateway)（`cloudflare-access` mode，詳情睇 submodule 入面嘅 `docs/CLOUDFLARE_ACCESS.md`）。
-
-- Gateway 由 workspace container 入面嘅 supervisord 跑（`supervisor/omp-gateway.conf` build 入 image），聽 `127.0.0.1:4317`。
-- `cloudflared` 係獨立 service，用 `network_mode: "service:workspace"` 同 workspace 共用 network namespace，所以 tunnel 入嚟嘅流量對 gateway 嚟講係 loopback。
-- Route 全部喺 Cloudflare 後台（Networking → Tunnels）設定，repo 唔放 `config.yml`。
-
-### 第一次設定
-
-1. Cloudflare Zero Trust 開一個 **self-hosted Access application**，hostname 例如 `omp.example.com`，policy 淨係放自己。抄低 **AUD tag**（64 個 hex 字元）同 team domain（`<team>.cloudflareaccess.com`）。
-2. 開一條 Cloudflare Tunnel，public hostname `omp.example.com` 指去 `http://localhost:4317`。
-3. 喺 `.env` 寫入：
-
-   ```env
-   CLOUDFLARE_TUNNEL_TOKEN=你個 tunnel token
-   OMP_GATEWAY_TEAM_DOMAIN=你個 team.cloudflareaccess.com
-   OMP_GATEWAY_AUDIENCE=你個 AUD tag
-   OMP_GATEWAY_ORIGIN=https://omp.example.com
-   OMP_GATEWAY_ALLOWED_LOGINS=you@example.com
-   ```
-
-   `OMP_GATEWAY_ALLOWED_LOGINS` 可以用逗號分隔多個 email。Tunnel token 已經包含 tunnel ID，唔使另外指定。
-4. `make build && make start`，跟住 `make init-omp-gateway`。
-5. 驗證：`make shell` 入去行
-
-   ```bash
-   cd ~/omp-session-gateway
-   XDG_CONFIG_HOME=~/.omp-gateway/config XDG_STATE_HOME=~/.omp-gateway/state bun apps/gateway/src/cli.ts doctor
-   ```
-
-   睇 `accessKeysReachable` 同 `accessEnforced` 係咪 `true`（`serviceInstalled` / `serviceActive` 係 `false` 係正常，因為唔係 systemd）。
-
-### 平時
-
-- 改咗 `OMP_GATEWAY_*` 或者更新咗 submodule，再行一次 `make init-omp-gateway`。
-- Gateway 嘅 config / state 喺 `.data/omp-gateway`（mount 做 `~/.omp-gateway`），必須係 `700`；gateway 唔接受 group / world 讀得到嘅路徑。
-- 未行 `make init-omp-gateway` 之前，supervisord 會重試幾次起 gateway，之後停喺 `FATAL`，`make logs` 會見到錯誤，唔影響其他嘢。
-- 第一次 `make start` 之前，`cloudflared` 如果未填 token 會不停重啟、報錯。
-- `workspace` 一重建（例如 `make build` 後 `make start`），`cloudflared` 都要跟住重建先會加入新嘅 network namespace；`make start` / `make restart` 會一齊處理。
-- `cloudflared` 斷咗線唔會自己死，只會一路重試，有時一直連唔返。所以加咗 healthcheck（`cloudflared tunnel ready`，冇 edge connection 就 unhealthy），由 `autoheal` service 自動 restart。Metrics 綁 `127.0.0.1:20241`，tailnet 見唔到。
-- 其他 dev server 想開出去，一樣喺後台加 route 指去 `http://localhost:<port>`，記得加 Access 保護。DB 唔好開出去。
-- Image 用 `latest`，要更新就行 `docker compose pull cloudflared` 再 `make start`。
-- 睇狀態：`docker compose logs cloudflared` / `docker compose logs workspace`（gateway log 會出喺 workspace 度），或者後台睇 tunnel 係咪 Healthy。
-
 ## Tailscale 🔗
 
-喺自己部 Mac / 手機經 tailnet 直接連 workspace 入面嘅 dev server，唔使逐個 port 去 Cloudflare 後台加 route。
+喺自己部 Mac / 手機經 tailnet 直接連 workspace 入面嘅 dev server。
 
-- `tailscale` 係獨立 service，同 `cloudflared` 一樣用 `network_mode: "service:workspace"`，tailnet 上面個 node 叫 `sandbox`。
-- 行 kernel（TUN）mode，所以 **dev server 要 bind `0.0.0.0`** 先連得到（例如 `vite --host`），淨係 bind `127.0.0.1` 嘅連唔到。Gateway（`127.0.0.1:4317`）因此喺 tailnet 見唔到，入口照舊淨係 Cloudflare。
+- `tailscale` 係獨立 service，用 `network_mode: "service:workspace"` 同 workspace 共用 network namespace，tailnet 上面個 node 叫 `sandbox`。
+- 行 kernel（TUN）mode，所以 **dev server 要 bind `0.0.0.0`** 先連得到（例如 `vite --host`），淨係 bind `127.0.0.1` 嘅連唔到。
 - 唔好轉 userspace mode：會將所有 loopback listener 開晒畀 tailnet。
 
 ### 第一次設定
@@ -222,13 +176,13 @@ SLACK_USER_TOKEN=xoxp-你個 Slack user token
 
 - Node state 喺 `.data/tailscale`，`make reset-db` 唔會清；註冊咗之後 auth key 過期都冇所謂。想重新註冊就自己 `rm -rf .data/tailscale`，記得喺 admin console 刪走舊 node，唔係新嗰個會變 `sandbox-1`。
 - `workspace` 一重建，`tailscale` 都要跟住重建；`make start` / `make restart` 會一齊處理。
-- 同 `cloudflared` 一樣有 healthcheck：`tailscale status --json` 嘅 `Self.Online`（同 coordination server 有冇連住）唔係 `true` 就 unhealthy，`autoheal` 會 restart。
+- 有 healthcheck：`tailscale status --json` 嘅 `Self.Online`（同 coordination server 有冇連住）唔係 `true` 就 unhealthy，`autoheal` 會 restart。
 - Image 用 `latest`，要更新就行 `docker compose pull tailscale` 再 `make start`。
 - 要 HTTPS（secure context）嘅話臨時喺 container 行 `tailscale serve`，唔寫入 compose。
 
 ## autoheal 🩹
 
-Compose 唔會 restart unhealthy 嘅 container，所以加咗 [`willfarrell/autoheal`](https://github.com/willfarrell/docker-autoheal)：每 5 秒 check 一次，有 `autoheal=true` label 而又 unhealthy 嘅 container（而家係 `cloudflared` 同 `tailscale`）就 `docker restart`。Restart sidecar 順便會重新加入 workspace 而家嘅 network namespace。
+Compose 唔會 restart unhealthy 嘅 container，所以加咗 [`willfarrell/autoheal`](https://github.com/willfarrell/docker-autoheal)：每 5 秒 check 一次，有 `autoheal=true` label 而又 unhealthy 嘅 container（而家係 `tailscale`）就 `docker restart`。Restart sidecar 順便會重新加入 workspace 而家嘅 network namespace。
 
 - 佢 mount 咗 `/var/run/docker.sock`，即係等同 host root；dev box 接受到，`network_mode: none` 至少令佢冇網絡。
 - 睇有冇 restart 過：`docker compose logs autoheal`，或者 `docker ps` 睇 sidecar 個 `(healthy)` / `(unhealthy)`。
@@ -272,15 +226,13 @@ curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
 sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
-├── .env / .env.example         # ClickHouse / MySQL credentials + omp gateway / gh / glab / Sentry / Slack / Notion / ClickUp / Cloudflare Tunnel / Tailscale token + omp-session-gateway 設定
+├── .env / .env.example         # ClickHouse / MySQL credentials + omp gateway / gh / glab / Sentry / Slack / Notion / ClickUp / Tailscale token
 ├── Makefile                    # 全部 make 指令
 ├── herdr-relay.ts              # make start 喺 host 起嘅 herdr relay，只放行 sandbox agent 狀態報告；container 停咗就代 agent release
 ├── Dockerfile                  # workspace 容器點 build
-├── supervisor/                 # omp-session-gateway 嘅 supervisord program（build 入 image）+ 由 .env 生成 gateway config.json 嘅 jq template
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
-├── .data/                      # MySQL / Redis 資料 + omp-session-gateway config / state bind mount 落呢度（gitignore）
+├── .data/                      # MySQL / Redis / Tailscale 資料（gitignore）
 ├── omp/                        # submodule，sasaya 個人 omp 設定，mount 入容器做 /home/sandbox/.omp
-├── omp-session-gateway/        # submodule（storyn26383/omp-session-gateway），mount 入容器做 /home/sandbox/omp-session-gateway
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```
 
@@ -293,9 +245,9 @@ make reset-db
 會做兩樣嘢：
 
 1. `docker compose down` —— 停晒所有 service
-2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis` —— 清 ClickHouse / MySQL / Redis 資料（保留 `./workspace`、`.data/omp-gateway` 同 `.data/tailscale`）
+2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis` —— 清 ClickHouse / MySQL / Redis 資料（保留 `./workspace` 同 `.data/tailscale`）
 
-跟住 `make start` 就係一套全新 DB；gateway config / state 唔受影響。
+跟住 `make start` 就係一套全新 DB。
 
 ## 提一提 ⚠️
 

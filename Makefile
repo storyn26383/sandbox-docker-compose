@@ -1,4 +1,4 @@
-.PHONY: init init-omp-gateway build start stop restart shell logs reset-db herdr-relay-start herdr-relay-stop
+.PHONY: init build start stop restart shell logs reset-db herdr-relay-start herdr-relay-stop
 
 -include .env
 export
@@ -8,24 +8,18 @@ HOST_GID := $(shell id -g)
 GIT_USER_NAME := $(shell git config --get user.name)
 GIT_USER_EMAIL := $(shell git config --get user.email)
 
-OMP_GATEWAY_DATA := .data/omp-gateway
-OMP_GATEWAY_CONFIG_DIRECTORY := /home/sandbox/.omp-gateway/config/omp-session-gateway
-OMP_GATEWAY_STATE_DIRECTORY := /home/sandbox/.omp-gateway/state
 HERDR_RELAY_PID := .data/herdr-relay.pid
 HERDR_RELAY_LOG := .data/herdr-relay.log
 HERDR_RELAY_PORT := 47123
 # its agents are released when it stops; the name comes from docker-compose.yml
 HERDR_RELAY_CONTAINER := sandbox-workspace
 
-init: .env build $(OMP_GATEWAY_DATA)
+init: .env build
 	git submodule update --init --recursive
 	mkdir -p workspace
 
 .env:
 	cp .env.example .env
-
-$(OMP_GATEWAY_DATA):
-	mkdir -p -m 700 $(OMP_GATEWAY_DATA)
 
 build:
 	docker compose build $(filter-out build,$(MAKECMDGOALS))
@@ -49,20 +43,6 @@ restart: stop start
 
 shell:
 	docker compose exec -u sandbox -e HERDR_ENV -e HERDR_PANE_ID workspace bash
-
-init-omp-gateway: $(OMP_GATEWAY_DATA)
-	docker compose exec -u sandbox -w /home/sandbox/omp-session-gateway \
-		-e BUN_INSTALL_CACHE_DIR=/home/sandbox/.bun/install/cache workspace \
-		sh -euc 'bun install --frozen-lockfile && bun run build'
-	docker compose exec -T -u sandbox \
-		-e OMP_GATEWAY_TEAM_DOMAIN -e OMP_GATEWAY_AUDIENCE -e OMP_GATEWAY_ORIGIN -e OMP_GATEWAY_ALLOWED_LOGINS \
-		workspace sh -euc 'umask 077 \
-			&& chmod 700 /home/sandbox/.omp-gateway \
-			&& mkdir -p $(OMP_GATEWAY_CONFIG_DIRECTORY) $(OMP_GATEWAY_STATE_DIRECTORY) \
-			&& jq -n -f /dev/stdin > $(OMP_GATEWAY_CONFIG_DIRECTORY)/config.json.tmp \
-			&& mv $(OMP_GATEWAY_CONFIG_DIRECTORY)/config.json.tmp $(OMP_GATEWAY_CONFIG_DIRECTORY)/config.json' \
-		< supervisor/omp-session-gateway-config.jq
-	docker compose exec workspace supervisorctl restart omp-gateway
 
 logs:
 	docker compose logs -f

@@ -22,8 +22,6 @@ services:
     volumes:
       - ./omp:/home/sandbox/.omp
       - ./workspace:/home/sandbox/workspace
-      - ./omp-session-gateway:/home/sandbox/omp-session-gateway
-      - ./.data/omp-gateway:/home/sandbox/.omp-gateway
     depends_on:
       - mysql
       - redis
@@ -50,29 +48,6 @@ services:
     volumes:
       - ./.data/redis:/data
 
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: sandbox-cloudflared
-    restart: unless-stopped
-    command: tunnel --no-autoupdate --metrics 127.0.0.1:20241 run
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
-    # Shares workspace's network namespace so the gateway sees tunnel traffic as loopback.
-    # Recreate this service whenever workspace is recreated.
-    # The process keeps retrying forever after losing the edge, so health is "has an active edge connection";
-    # autoheal restarts it when unhealthy. Metrics bind to loopback to stay off the tailnet.
-    healthcheck:
-      test: ["CMD", "cloudflared", "tunnel", "--metrics", "127.0.0.1:20241", "ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 4
-      start_period: 30s
-    labels:
-      autoheal: "true"
-    network_mode: "service:workspace"
-    depends_on:
-      - workspace
-
   tailscale:
     image: tailscale/tailscale:latest
     container_name: sandbox-tailscale
@@ -89,7 +64,7 @@ services:
     volumes:
       - ./.data/tailscale:/var/lib/tailscale
     # Shares workspace's network namespace so tailnet peers reach workspace ports directly.
-    # Kernel (TUN) mode keeps 127.0.0.1-bound listeners, including the gateway, off the tailnet.
+    # Kernel (TUN) mode keeps 127.0.0.1-bound listeners off the tailnet.
     # Recreate this service whenever workspace is recreated.
     # Self.Online tracks the control-plane long poll; tailscaled can stay up without it, so autoheal restarts it.
     healthcheck:
