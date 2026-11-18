@@ -206,7 +206,8 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && echo 'umask 022' >> /home/${USERNAME}/.bashrc \
     && echo 'eval "$(direnv hook bash)"' >> /home/${USERNAME}/.bashrc \
     && printf '[client]\nssl=0\n' > /home/${USERNAME}/.my.cnf \
-    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.my.cnf
+    && mkdir /home/${USERNAME}/.config \
+    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.my.cnf /home/${USERNAME}/.config
 
 # ==============================================================================
 # Rust (from the rust stage)
@@ -352,7 +353,6 @@ RUN set -eux; \
     rtk --version
 
 # ==============================================================================
-# ==============================================================================
 # herdr (agent terminal multiplexer)
 # ==============================================================================
 ARG HERDR_VERSION=0.9.5
@@ -377,6 +377,7 @@ RUN set -eux; \
     chmod +x /usr/local/bin/herdr; \
     herdr --version
 
+# ==============================================================================
 # Node.js and global CLI tools
 # ==============================================================================
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \

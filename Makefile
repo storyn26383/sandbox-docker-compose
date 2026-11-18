@@ -16,7 +16,7 @@ HERDR_RELAY_CONTAINER := sandbox-workspace
 
 init: .env build
 	git submodule update --init --recursive
-	mkdir -p workspace
+	mkdir -p workspace .data/herdr
 
 .env:
 	cp .env.example .env

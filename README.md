@@ -70,13 +70,16 @@ make reset-db   # 一鍵清晒 DB data（ClickHouse / MySQL / Redis）
 
 ## Workspace 📂
 
-預設已經有一個 workspace mount：
+預設已經有兩個 mount：
 
 | Host | 容器 |
 |---|---|
 | `./workspace/` | `/home/sandbox/workspace`（即 `~/workspace`） |
+| `./.data/herdr/` | `/home/sandbox/.config/herdr`（容器入面 herdr 嘅 config 同 session） |
 
-`make init` 會幫你預先 `mkdir` 好個目錄。Host 上面用任何 IDE 直接 edit `./workspace/...`，容器內即時見到（`make shell` 入去就喺 `~/workspace`）。`./workspace/` 已經 `.gitignore`，唔會污染 repo。
+`make init` 會幫你預先 `mkdir` 好兩個目錄。Host 上面用任何 IDE 直接 edit `./workspace/...`，容器內即時見到（`make shell` 入去就喺 `~/workspace`）。`./workspace/` 已經 `.gitignore`，唔會污染 repo。
+
+容器入面嘅 herdr 會將 layout 存入 `session.json`，所以 container 重建之後 workspace / tab / pane / cwd 都會返嚟；pane 入面嘅 process 就冇咗，會變返新 shell。omp pane 會用 `omp --resume` 接返對話，前提係喺容器入面行過 `herdr integration install omp`。
 
 因為 sandbox 用戶 UID/GID 跟住 host 一樣，permission 自動匹配，host 同容器寫嘅檔案兩邊都當係你本機 user 擁有。`git` 嘅 user.name / user.email 喺 `make build` 嗰陣由 Makefile 從 host `git config` 攞返，build 入 image，commit 即用即得。
 
@@ -231,7 +234,7 @@ sandbox-docker-compose/
 ├── herdr-relay.ts              # make start 喺 host 起嘅 herdr relay，只放行 sandbox agent 狀態報告；container 停咗就代 agent release
 ├── Dockerfile                  # workspace 容器點 build
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
-├── .data/                      # MySQL / Redis / Tailscale 資料（gitignore）
+├── .data/                      # MySQL / Redis / Tailscale / 容器 herdr session 資料（gitignore）
 ├── omp/                        # submodule，sasaya 個人 omp 設定，mount 入容器做 /home/sandbox/.omp
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```
@@ -245,7 +248,7 @@ make reset-db
 會做兩樣嘢：
 
 1. `docker compose down` —— 停晒所有 service
-2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis` —— 清 ClickHouse / MySQL / Redis 資料（保留 `./workspace` 同 `.data/tailscale`）
+2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis` —— 清 ClickHouse / MySQL / Redis 資料（保留 `./workspace`、`.data/tailscale` 同 `.data/herdr`）
 
 跟住 `make start` 就係一套全新 DB。
 

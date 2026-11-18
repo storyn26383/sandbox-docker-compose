@@ -43,6 +43,7 @@ The Claude Code sandbox can't access the Docker socket (OrbStack / Docker Deskto
 ## Dev container design principles
 
 - **Mounts `./.data/workspace` to `/home/sandbox/workspace`** as the default workspace (host IDE edits show up immediately in the container under `~/workspace` via `make shell`). `make init` pre-creates the directory so the Docker daemon doesn't create it as root and break sandbox writes. Add other mounts by editing `docker-compose.yml` directly.
+- **Mounts `./.data/herdr` to `/home/sandbox/.config/herdr`** so the in-container herdr's `config.toml` and `session.json` (layout, cwd, agent session references) survive container recreation; pane processes still restart as fresh shells. The Dockerfile pre-creates `~/.config` as `sandbox` so the bind mount doesn't leave the parent root-owned, and `make init` pre-creates `.data/herdr`. `make reset-db` keeps it.
 - Base image is `phpswoole/swoole:6.3-php8.4` (Debian 13 trixie); don't suggest switching to Alpine — the alpine variant doesn't ship dev tooling and would need a lot of plumbing.
 - WORKDIR is `/home/sandbox/workspace` (the sandbox user's `~/workspace`), aligned with the host bind-mount target — `make shell` lands you there naturally.
 - Two identities exist inside the container:
