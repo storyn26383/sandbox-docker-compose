@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Rust 1.89.0、Flutter 3.44.1、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | omp、openspec、rtk、gh、glab、sentry-cli、slack、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | omp、openspec、rtk、herdr、gh、glab、sentry-cli、slack、jq、ripgrep、fzf、htop、direnv |
 | 🦀 App 開發 | melos、flutter_rust_bridge_codegen、cargo-audit、protoc 26.1 |
 | 📝 編輯器 | Neovim（`nvim`），`VISUAL` / `EDITOR` 預設用佢 |
 | 🌐 瀏覽器 | chromium（headless） |
