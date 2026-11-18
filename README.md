@@ -64,6 +64,7 @@ make start      # 起所有 service（連埋 host 上嘅 herdr relay）
 make stop       # 全部停（連埋 herdr relay）
 make restart    # 重啟
 make shell      # docker exec 入 workspace container（pwd ~/workspace）
+make ssh        # 透過 sshd 入 workspace container
 make logs       # tail 晒所有 log
 make reset-db   # 一鍵清晒 DB data（ClickHouse / MySQL / Redis）
 ```
@@ -77,7 +78,7 @@ make reset-db   # 一鍵清晒 DB data（ClickHouse / MySQL / Redis）
 | `./workspace/` | `/home/sandbox/workspace`（即 `~/workspace`） |
 | `./.data/herdr/` | `/home/sandbox/.config/herdr`（容器入面 herdr 嘅 config 同 session） |
 
-`make init` 會幫你預先 `mkdir` 好兩個目錄。Host 上面用任何 IDE 直接 edit `./workspace/...`，容器內即時見到（`make shell` 入去就喺 `~/workspace`）。`./workspace/` 已經 `.gitignore`，唔會污染 repo。
+`make init` 會幫你預先 `mkdir` 好兩個目錄。Host 上面用任何 IDE 直接 edit `./workspace/...`，容器內即時見到（`make shell` / `make ssh` 入去就喺 `~/workspace`）。`./workspace/` 已經 `.gitignore`，唔會污染 repo。
 
 容器入面嘅 herdr 會將 layout 存入 `session.json`，所以 container 重建之後 workspace / tab / pane / cwd 都會返嚟；pane 入面嘅 process 就冇咗，會變返新 shell。omp pane 會用 `omp --resume` 接返對話，前提係喺容器入面行過 `herdr integration install omp`。
 
@@ -210,6 +211,37 @@ Compose 唔會 restart unhealthy 嘅 container，所以加咗 [`willfarrell/auto
 - Collie 要用 `~/Coding/Sasaya/herdr`（`dev-env` branch）build 出嚟嘅 herdr，先會記低 `sandbox:*` 嘅 session id；官方 herdr 只記 `herdr:*`。另外 `~/.config/collie/.env` 嘅 `COLLIE_PI_ROOT` 要包埋 `omp/agent/sessions`，Collie 先搵到 sandbox 嘅 transcript
 - relay log 喺 `.data/herdr-relay.log`；relay 死咗就 `make stop && make start`
 
+## SSH 🔑（herdr remote）
+
+Dev container 入面跑住 sshd，主要畀 host 嘅 herdr 用 [remote session](https://herdr.dev/tui/docs/persistence-remote/) 連入嚟。host 嘅 `127.0.0.1:2222` 對住容器嘅 `22`。SSH 認證用你 host 嘅 `~/.ssh/id_ed25519.pub`（mount 入容器做 `/home/sandbox/.ssh/authorized_keys`，想用第二條 key 就喺 `.env` 設 `SSH_PUBKEY`），login 帳戶係 `sandbox`（root login disabled），唔使輸密碼。
+
+建議喺 host 嘅 `~/.ssh/config` 加：
+
+```
+Host sandbox
+  HostName 127.0.0.1
+  Port 2222
+  User sandbox
+```
+
+之後：
+
+```bash
+herdr --remote sandbox             # 一次性 attach 容器入面嘅 herdr
+herdr machine add sandbox          # 或者存做 saved machine，同 Local 擺喺同一個 sidebar
+make ssh                           # 淨係想要個 shell
+```
+
+容器已經裝咗 herdr（`/usr/local/bin/herdr`），版本同 host 唔使一樣；herdr 搵唔到相容版本先會問你裝唔裝去 `~/.local/bin`。容器入面 herdr 嘅 layout 喺 `.data/herdr`，container 重建都保留到。
+
+經 SSH 開嘅 omp 係喺容器自己個 herdr 入面跑，狀態直接報畀容器嘅 herdr socket，唔行 `herdr-relay.ts`；所以 SSH session 冇 `HERDR_RELAY_ADDRESS`（`make shell` 嗰邊照舊有）。
+
+⚠️ 只限 host 連：`tailscale` 同 workspace 共用 network namespace，sshd 會拒絕晒 tailnet（`100.64.0.0/10`）嚟嘅連線，所以唔好試 `ssh sandbox@sandbox`（tailnet 嗰個 `sandbox`）。
+
+SSH 入去會有返 container 嘅 env（`.env` 啲 token、Rust / Flutter / Go 嘅 `PATH`），container 起嗰陣寫入 `/etc/environment`。改完 `.env` 要 `make restart` 先會更新。
+
+要改 SSH port 就喺 `.env` 改 `SANDBOX_SSH_PORT=...`，`make restart` 之後即時生效（記得 `~/.ssh/config` 都要跟住改）。
+
 ## 連 DB 🔌
 
 Sandbox 嘅 DB 全部唔 publish 到 host，host 冇直接連入嚟嘅路徑（設計如此，避免同你本機 DB port 撞）。要連 DB 就 `make shell` 入 workspace container，用 service name 連：
@@ -229,7 +261,7 @@ curl 'http://clickhouse:8123/?query=SELECT+1'
 ```
 sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
-├── .env / .env.example         # ClickHouse / MySQL credentials + omp gateway / gh / glab / Sentry / Slack / Notion / ClickUp / Tailscale token
+├── .env / .env.example         # ClickHouse / MySQL credentials + omp gateway / gh / glab / Sentry / Slack / Notion / ClickUp / Tailscale token + SSH port / pubkey
 ├── Makefile                    # 全部 make 指令
 ├── herdr-relay.ts              # make start 喺 host 起嘅 herdr relay，只放行 sandbox agent 狀態報告；container 停咗就代 agent release
 ├── Dockerfile                  # workspace 容器點 build
