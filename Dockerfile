@@ -364,7 +364,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 # ==============================================================================
 # Bun and omp
 # ==============================================================================
-ARG OMP_VERSION=18.22.0
+ARG OMP_VERSION=19.0.1
 ENV BUN_INSTALL=/usr/local
 RUN curl -fsSL https://bun.sh/install | bash \
     && bun install -g @oh-my-pi/pi-coding-agent@${OMP_VERSION} \
