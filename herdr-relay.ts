@@ -6,8 +6,12 @@
 //
 // The agent keeps its real name (`omp`) so herdr and Collie pick that agent's
 // screen grammar. The `sandbox:*` source keeps herdr from treating the report as its own
-// integration, so the session id is recorded for Collie but never drives a resume; the
-// patched herdr in ~/Coding/Sasaya/herdr (dev-env branch) is what records it.
+// integration; the patched herdr in ~/Coding/Sasaya/herdr (dev-env branch) records its session id.
+//
+// herdr restores a pane by typing its resume command into the host shell, so a command from the
+// container is never forwarded. The relay builds its own, `sandbox omp <session-id>` (the zsh
+// function from chezmoi), from a session id that must look like a UUID, and records the latest id
+// per pane in .data/sandbox-omp/<pane-id> so `sandbox omp` can reconnect after a container restart.
 //
 // herdr cannot see processes inside the container, so a sandbox agent stays reported until it
 // releases itself. When the container stops (restart, crash, `make stop`), its agents die
@@ -27,6 +31,7 @@ const HERDR_SOCKET_PATH =
 // the container whose agents are released when it stops; unset disables the cleanup
 const CONTAINER = process.env.HERDR_RELAY_CONTAINER || undefined;
 const STATE_PATH = process.env.HERDR_RELAY_STATE ?? path.join(import.meta.dir, ".data/herdr-relay-agents.json");
+const SESSIONS_DIR = path.join(import.meta.dir, ".data/sandbox-omp");
 const SANDBOX_SOURCE_PREFIX = "sandbox:";
 const ALLOWED_AGENTS: Record<string, true> = { omp: true };
 const MAX_LINE_BYTES = 16 * 1024;
@@ -40,8 +45,11 @@ const ALLOWED_METHODS: Record<string, true> = {
   [REPORT_AGENT_SESSION]: true,
   [RELEASE_AGENT]: true,
 };
-// resume_argv would run on the host; a container session path names nothing on the host.
+// a command from the container would run on the host; a container session path names nothing there
 const STRIPPED_FIELDS = ["resume_argv", "agent_session_path"];
+const SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+// also a file name under SESSIONS_DIR, so no path separators or dots
+const PANE_ID_PATTERN = /^[A-Za-z0-9:]+$/;
 
 type RelayRequest = { id?: unknown; method?: string; params?: Record<string, unknown> };
 
@@ -66,6 +74,10 @@ function sanitize(line: string): RelayRequest | undefined {
 
   const allowedParams = { ...params };
   for (const field of STRIPPED_FIELDS) delete allowedParams[field];
+  const sessionId = params.agent_session_id;
+  if (typeof sessionId === "string" && SESSION_ID_PATTERN.test(sessionId)) {
+    allowedParams.resume_argv = ["sandbox", "omp", sessionId];
+  }
   return { id: request.id, method: request.method, params: allowedParams };
 }
 
@@ -101,6 +113,7 @@ function track(request: RelayRequest): void {
   const params = request.params!;
   const paneId = params.pane_id;
   if (typeof paneId !== "string") return;
+  recordSession(paneId, params.agent_session_id);
   if (request.method === RELEASE_AGENT) {
     if (!reported[paneId]) return;
     delete reported[paneId];
@@ -109,6 +122,15 @@ function track(request: RelayRequest): void {
     reported[paneId] = { source: String(params.source), agent: String(params.agent), seq, reportedAt: Date.now() };
   }
   saveReported();
+}
+
+// Kept across releases: a container stop releases the agent, and `sandbox omp` then needs the id
+// to reconnect. `sandbox omp` deletes it when omp exits normally.
+function recordSession(paneId: string, sessionId: unknown): void {
+  if (typeof sessionId !== "string" || !SESSION_ID_PATTERN.test(sessionId)) return;
+  if (!PANE_ID_PATTERN.test(paneId)) return;
+  mkdirSync(SESSIONS_DIR, { recursive: true });
+  writeFileSync(path.join(SESSIONS_DIR, paneId), sessionId);
 }
 
 // --- herdr ---

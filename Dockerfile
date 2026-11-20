@@ -353,31 +353,6 @@ RUN set -eux; \
     rtk --version
 
 # ==============================================================================
-# herdr (agent terminal multiplexer)
-# ==============================================================================
-ARG HERDR_VERSION=0.9.5
-
-RUN set -eux; \
-    case "$(dpkg --print-architecture)" in \
-        amd64) \
-            herdr_binary="herdr-linux-x86_64"; \
-            herdr_checksum="14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d"; \
-            ;; \
-        arm64) \
-            herdr_binary="herdr-linux-aarch64"; \
-            herdr_checksum="17d7536f2da50859523680ef279dffcac8e4a235f4e46fe8da6c2ec44141897c"; \
-            ;; \
-        *) \
-            echo "Unsupported herdr architecture: $(dpkg --print-architecture)" >&2; \
-            exit 1; \
-            ;; \
-    esac; \
-    curl --fail --location --show-error --silent "https://github.com/herdrdev/herdr/releases/download/v${HERDR_VERSION}/${herdr_binary}" --output /usr/local/bin/herdr; \
-    echo "${herdr_checksum}  /usr/local/bin/herdr" | sha256sum --check; \
-    chmod +x /usr/local/bin/herdr; \
-    herdr --version
-
-# ==============================================================================
 # Node.js and global CLI tools
 # ==============================================================================
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \

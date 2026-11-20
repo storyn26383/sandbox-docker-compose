@@ -22,7 +22,6 @@ services:
     volumes:
       - ./omp:/home/sandbox/.omp
       - ./workspace:/home/sandbox/workspace
-      - ./.data/herdr:/home/sandbox/.config/herdr
     depends_on:
       - mysql
       - redis

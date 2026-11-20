@@ -12,7 +12,7 @@ ClickHouse 嗰 part 直接用 git submodule 拉返 [`golden-clickhouse`](https:/
 |---|---|
 | 🐘 程式語言 | PHP 8.5、Swoole 6.2、Go 1.26.5、Rust 1.89.0、Flutter 3.44.1、Bun、Node.js 22 |
 | 🧩 PHP 擴充 | bcmath、gd、intl、pcntl、zip、decimal |
-| 🤖 CLI | omp、openspec、rtk、herdr、gh、glab、sentry-cli、slack、jq、ripgrep、fzf、htop、direnv |
+| 🤖 CLI | omp、openspec、rtk、gh、glab、sentry-cli、slack、jq、ripgrep、fzf、htop、direnv |
 | 🦀 App 開發 | melos、flutter_rust_bridge_codegen、cargo-audit、protoc 26.1 |
 | 📝 編輯器 | Neovim（`nvim`），`VISUAL` / `EDITOR` 預設用佢 |
 | 🌐 瀏覽器 | chromium（headless） |
@@ -70,16 +70,13 @@ make reset-db   # 一鍵清晒 DB data（ClickHouse / MySQL / Redis）
 
 ## Workspace 📂
 
-預設已經有兩個 mount：
+預設已經有一個 mount：
 
 | Host | 容器 |
 |---|---|
 | `./workspace/` | `/home/sandbox/workspace`（即 `~/workspace`） |
-| `./.data/herdr/` | `/home/sandbox/.config/herdr`（容器入面 herdr 嘅 config 同 session） |
 
-`make init` 會幫你預先 `mkdir` 好兩個目錄。Host 上面用任何 IDE 直接 edit `./workspace/...`，容器內即時見到（`make shell` 入去就喺 `~/workspace`）。`./workspace/` 已經 `.gitignore`，唔會污染 repo。
-
-容器入面嘅 herdr 會將 layout 存入 `session.json`，所以 container 重建之後 workspace / tab / pane / cwd 都會返嚟；pane 入面嘅 process 就冇咗，會變返新 shell。omp pane 會用 `omp --resume` 接返對話，前提係喺容器入面行過 `herdr integration install omp`。
+`make init` 會幫你預先 `mkdir` 好個目錄。Host 上面用任何 IDE 直接 edit `./workspace/...`，容器內即時見到（`make shell` 入去就喺 `~/workspace`）。`./workspace/` 已經 `.gitignore`，唔會污染 repo。
 
 因為 sandbox 用戶 UID/GID 跟住 host 一樣，permission 自動匹配，host 同容器寫嘅檔案兩邊都當係你本機 user 擁有。`git` 嘅 user.name / user.email 喺 `make build` 嗰陣由 Makefile 從 host `git config` 攞返，build 入 image，commit 即用即得。
 
@@ -193,7 +190,14 @@ Compose 唔會 restart unhealthy 嘅 container，所以加咗 [`willfarrell/auto
 
 ## herdr 🐑
 
-喺 [herdr](https://herdr.dev) 入面 `make shell` 再開 `omp`，sidebar、通知同 Collie 都見到佢嘅 `working` / `blocked` / `idle`，名同 host 嘅一樣係 `omp`（分唔到係刻意，Collie 要真名先會用嗰個 agent 嘅畫面規則）。
+喺 host 嘅 [herdr](https://herdr.dev) pane 行 `sandbox omp`（chezmoi 嘅 `dot_oh-my-zsh/custom/scripts/sandbox.zsh`），就會喺 container 開 `omp`，sidebar、通知同 Collie 都見到佢嘅 `working` / `blocked` / `idle`，名同 host 嘅一樣係 `omp`（分唔到係刻意，Collie 要真名先會用嗰個 agent 嘅畫面規則）。
+
+`sandbox omp`：
+
+- 要喺 `~/Coding/Sandbox/workspace/...` 入面行，會換算做 container 對應嘅 folder（`docker exec -w`）先開 omp；唔喺 workspace 入面就直接報錯
+- container restart 之後自動等佢起返，再用 `omp --restore=<session id>` 接返同一個對話（連埋中途斷咗嘅 turn）；正常 quit omp 就唔會再開
+- herdr 自己重啟之後，會喺 pane 打 `sandbox omp <session id>` 接返（resume 指令由 relay 砌，見下面）
+- 開之前會殺走同一個 pane 之前留低嘅 omp：`docker exec` 個 client 死咗（例如 herdr 重啟），container 入面嘅 process 唔會跟住死，留住佢會令新 omp 寫去另一個 session
 
 點運作：
 
@@ -202,11 +206,11 @@ Compose 唔會 restart unhealthy 嘅 container，所以加咗 [`willfarrell/auto
 - `docker-compose.yml` 幫 workspace 設定 `HERDR_RELAY_ADDRESS`（port 跟 Makefile 嘅 `HERDR_RELAY_PORT`）；`make shell` 再將 `HERDR_ENV` / `HERDR_PANE_ID` 傳入容器，因為呢兩個係你喺邊個 herdr pane 行 `make shell` 先知，喺 herdr 以外行就唔會有
 - container 重開或者 agent crash 時，agent 嚟唔切報 release，而 herdr 自己睇唔到 container 入面，會一直當 agent 仲喺度。所以 relay 會記低轉發過嘅 agent（`.data/herdr-relay-agents.json`），收到 `HERDR_RELAY_CONTAINER`（Makefile 設做 `sandbox-workspace`）嘅 docker `die` event 就代佢哋 release；relay 啟動時如果發現 container 喺佢停咗嗰陣重開過，都會 release
 
-⚠️ herdr socket 可以喺任何 pane 打字、喺 host 行 command，所以 relay 只放行 source 係 `sandbox:*`、agent 係 `omp` 嘅狀態報告，剷走 `resume_argv` 同 `agent_session_path`，其他 request 一律 `relay_rejected`。唔好改做直接轉發。
+⚠️ herdr socket 可以喺任何 pane 打字、喺 host 行 command，所以 relay 只放行 source 係 `sandbox:*`、agent 係 `omp` 嘅狀態報告，剷走 `resume_argv` 同 `agent_session_path`，其他 request 一律 `relay_rejected`。唔好改做直接轉發。Resume 指令一律由 relay 自己砌做 `sandbox omp <id>`，id 要係 UUID 格式先會用；每個 pane 最新嘅 id 寫入 `.data/sandbox-omp/<pane id>` 畀 `sandbox omp` 重連用。
 
 限制：
 
-- sandbox 入面嘅 agent herdr 重啟後唔會自動 resume（係刻意嘅：`sandbox:*` session 只記 id，唔會喺 host 行 resume）
+- `sandbox omp` 係 chezmoi 嘅 zsh function，herdr 重啟後喺 pane 打嘅 `sandbox omp <id>` 靠 zsh 先行得到；`make shell` 開嘅 omp 唔會自動重連
 - Collie 要用 `~/Coding/Sasaya/herdr`（`dev-env` branch）build 出嚟嘅 herdr，先會記低 `sandbox:*` 嘅 session id；官方 herdr 只記 `herdr:*`。另外 `~/.config/collie/.env` 嘅 `COLLIE_PI_ROOT` 要包埋 `omp/agent/sessions`，Collie 先搵到 sandbox 嘅 transcript
 - relay log 喺 `.data/herdr-relay.log`；relay 死咗就 `make stop && make start`
 
@@ -231,10 +235,10 @@ sandbox-docker-compose/
 ├── docker-compose.yml          # 主 compose（include 埋 clickhouse 個 submodule）
 ├── .env / .env.example         # ClickHouse / MySQL credentials + omp gateway / gh / glab / Sentry / Slack / Notion / ClickUp / Tailscale token
 ├── Makefile                    # 全部 make 指令
-├── herdr-relay.ts              # make start 喺 host 起嘅 herdr relay，只放行 sandbox agent 狀態報告；container 停咗就代 agent release
+├── herdr-relay.ts              # make start 喺 host 起嘅 herdr relay，只放行 sandbox agent 狀態報告；砌 resume 指令；container 停咗就代 agent release
 ├── Dockerfile                  # workspace 容器點 build
 ├── workspace/                  # 你嘅 workspace bind mount（gitignore）
-├── .data/                      # MySQL / Redis / Tailscale / 容器 herdr session 資料（gitignore）
+├── .data/                      # MySQL / Redis / Tailscale 資料、sandbox omp 嘅 session id（gitignore）
 ├── omp/                        # submodule，sasaya 個人 omp 設定，mount 入容器做 /home/sandbox/.omp
 └── clickhouse/                 # submodule（storyn26383/golden-clickhouse），ClickHouse 嘅嘢全部喺呢度
 ```
@@ -248,7 +252,7 @@ make reset-db
 會做兩樣嘢：
 
 1. `docker compose down` —— 停晒所有 service
-2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis` —— 清 ClickHouse / MySQL / Redis 資料（保留 `./workspace`、`.data/tailscale` 同 `.data/herdr`）
+2. `rm -rf clickhouse/docker/.data/clickhouse .data/mysql .data/redis` —— 清 ClickHouse / MySQL / Redis 資料（保留 `./workspace` 同 `.data/tailscale`）
 
 跟住 `make start` 就係一套全新 DB。
 
