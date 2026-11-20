@@ -19,10 +19,7 @@ services:
     environment:
       # Where agents report state to herdr; the host side is herdr-relay.ts, started by `make start`
       HERDR_RELAY_ADDRESS: host.docker.internal:${HERDR_RELAY_PORT:-47123}
-    ports:
-      - "127.0.0.1:${SANDBOX_SSH_PORT:-2222}:22"
     volumes:
-      - ${SSH_PUBKEY:-${HOME}/.ssh/id_ed25519.pub}:/home/sandbox/.ssh/authorized_keys:ro
       - ./omp:/home/sandbox/.omp
       - ./workspace:/home/sandbox/workspace
       - ./.data/herdr:/home/sandbox/.config/herdr

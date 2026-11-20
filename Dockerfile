@@ -140,7 +140,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     EDITOR=nvim
 
 # ==============================================================================
-# System packages, locale, and sshd
+# System packages and locale
 # ==============================================================================
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget gnupg \
@@ -150,7 +150,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        neovim sudo openssh-client openssh-server unzip zip xz-utils \
+        neovim sudo unzip zip xz-utils \
         clang cmake ninja-build pkg-config \
         gh jq ripgrep fzf htop direnv \
         chromium \
@@ -160,14 +160,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libmpdec-dev libjpeg-dev libpng-dev libicu-dev libzip-dev \
     && sed -i 's/^# *\(en_US.UTF-8\|zh_HK.UTF-8\)/\1/' /etc/locale.gen \
     && locale-gen \
-    && mkdir -p /run/sshd \
-    && sed -ri \
-        -e 's/^#?PermitRootLogin.*/PermitRootLogin no/' \
-        -e 's/^#?PasswordAuthentication.*/PasswordAuthentication no/' \
-        -e 's/^#?PubkeyAuthentication.*/PubkeyAuthentication yes/' \
-        /etc/ssh/sshd_config \
-    && printf '\n# tailscale shares this network namespace; SSH stays host-only via the published port\nMatch Address 100.64.0.0/10,fd7a:115c:a1e0::/48\n\tDenyUsers *\n' >> /etc/ssh/sshd_config \
-    && printf 'while IFS= read -r line; do export "$line"; done < /etc/environment\n' > /etc/profile.d/zz-container-env.sh \
     && rm -rf /var/lib/apt/lists/*
 
 # ==============================================================================
@@ -214,9 +206,8 @@ RUN groupadd -g ${GID} ${USERNAME} 2>/dev/null || true \
     && echo 'umask 022' >> /home/${USERNAME}/.bashrc \
     && echo 'eval "$(direnv hook bash)"' >> /home/${USERNAME}/.bashrc \
     && printf '[client]\nssl=0\n' > /home/${USERNAME}/.my.cnf \
-    && mkdir /home/${USERNAME}/.config /home/${USERNAME}/.ssh \
-    && chmod 700 /home/${USERNAME}/.ssh \
-    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.my.cnf /home/${USERNAME}/.config /home/${USERNAME}/.ssh
+    && mkdir /home/${USERNAME}/.config \
+    && chown ${UID}:${GID} /home/${USERNAME}/.bashrc /home/${USERNAME}/.my.cnf /home/${USERNAME}/.config
 
 # ==============================================================================
 # Rust (from the rust stage)
@@ -405,9 +396,5 @@ RUN curl -fsSL https://bun.sh/install | bash \
     && bun pm cache rm \
     && omp --version
 
-# SSH sessions start from a clean environment: hand the container env (tokens, toolchain PATH) to them
-# via /etc/environment (pam_env), re-exported by /etc/profile.d/zz-container-env.sh since /etc/profile resets PATH.
-# HERDR_RELAY_ADDRESS stays out: over SSH, omp runs under the container's own herdr and reports to its socket.
 WORKDIR /home/sandbox/workspace
-EXPOSE 22
-CMD ["bash", "-c", "env | grep -vE '^(HOME|HOSTNAME|OLDPWD|PWD|SHLVL|TERM|_|HERDR_RELAY_ADDRESS)=' > /etc/environment && exec /usr/sbin/sshd -D -e"]
+CMD ["sleep", "infinity"]

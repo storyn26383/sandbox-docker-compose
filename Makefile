@@ -1,14 +1,12 @@
-.PHONY: init build start stop restart shell ssh logs reset-db herdr-relay-start herdr-relay-stop
+.PHONY: init build start stop restart shell logs reset-db herdr-relay-start herdr-relay-stop
 
 -include .env
 export
 
-SANDBOX_SSH_PORT ?= 2222
 HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
 GIT_USER_NAME := $(shell git config --get user.name)
 GIT_USER_EMAIL := $(shell git config --get user.email)
-SSH_OPTS = -p $(SANDBOX_SSH_PORT) -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
 HERDR_RELAY_PID := .data/herdr-relay.pid
 HERDR_RELAY_LOG := .data/herdr-relay.log
@@ -45,9 +43,6 @@ restart: stop start
 
 shell:
 	docker compose exec -u sandbox -e HERDR_ENV -e HERDR_PANE_ID workspace bash
-
-ssh:
-	ssh $(SSH_OPTS) sandbox@localhost
 
 logs:
 	docker compose logs -f
