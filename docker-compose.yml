@@ -12,6 +12,8 @@ services:
         GIT_USER_NAME: ${GIT_USER_NAME}
         GIT_USER_EMAIL: ${GIT_USER_EMAIL}
     container_name: sandbox-workspace
+    # shown by omp's `hostname` status segment, so sandbox omp is told apart from the host's
+    hostname: sandbox
     tty: true
     stdin_open: true
     working_dir: /home/sandbox/workspace
